@@ -97,10 +97,13 @@ def build(clean: bool, out: Path | None):
     if clean and out_dll.exists():
         out_dll.unlink()
 
+    # 把 .obj 也重定向到 build/，避免污染仓库根目录（cl 默认把 obj 写到 cwd）。
+    obj_dir = out_dll.parent
     cmd = [
         str(cl), "/nologo", "/LD", "/EHsc", "/Y-", "/utf-8", "/O2",
         "/D", "WIN32", "/D", "NDEBUG", "/D", "PG2CHSDLL_EXPORTS",
         "/D", "_WINDOWS", "/D", "_USRDLL",
+        f"/Fo{obj_dir}\\",
         "/I", str(SRC),
         str(SRC / "dllmain.cpp"), str(SRC / "pch.cpp"),
         "/link", f"/OUT:{out_dll}",

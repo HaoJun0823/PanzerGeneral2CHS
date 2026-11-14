@@ -1,125 +1,236 @@
 # 装甲元帅 2（Panzer General 2）汉化 · 技术交接文档
 
-> 本文件是「初步调研」的固化记录，供后续用 IDA Pro + ida-pro-mcp 深入逆向时对接。
+> 本文件是调研记录，供后续用 IDA Pro + `ida-pro-mcp` 深入逆向 / 编写 ASI 补丁时对接。
 > 调研对象：**`PG2UK220.EXE`**（GOG 增强兼容主程序，834,528 字节，PE32，
 > 时间戳 2010-06-02 即 GOG 重打包；**不碰 `PANZER2.EXE`**）。
 > 游戏本体内部代号 `pz97`（Panzer General 97），VC++ 构建。
+>
+> **最近更新**：2026-11-14 用 IDA Pro + ida-pro-mcp 实逆向，§3 的全部开放问题已解答，
+> 渲染路径与 hook 点已精确锁定（见 §3 / §6）。
 
 ---
 
 ## 0. 范围与边界
 
-- **目标程序**：仅 `PG2UK220.EXE`（GOG 主程序）。所有汉化改动围绕它展开。
-- **可动用手段**：允许用 IDA Pro + `ida-pro-mcp` 逆向字符串交叉引用、渲染逻辑。
-- **不预设立场**：汉化可改 EXE，也可改伴随文件（外部 `.txt` 文本表），视渲染路径而定。
+- **目标程序**：仅 `PG2UK220.EXE`（GOG 主程序）。
+- **可动用手段**：IDA Pro + `ida-pro-mcp`（已验证可连，会话 `210d14e8`，Hex-Rays 就绪）。
+- **汉化总策略**：ASI/DLL 注入（`winmm.dll` 代理，已确认游戏真 import winmm，见 §1.2）。
+- **已搭工程**：`G:/Projects/PanzerGeneral2CHS`（LICENSE / CI / 资源打包 同作者三项目模式）。
 
 ---
 
-## 1. 已确认的架构事实（均有证据）
+## 1. 已确认的架构事实（均有 IDA 证据）
 
 ### 1.1 程序本体 / PE 结构
 - `PG2UK220.EXE`，PE32，6 个节：`.text` / `.rdata` / `.data` / `.idata` / `.rsrc` / `.reloc`。
-- 二进制里泄露源路径：`C:\pz97\main\Src\Text.c`、`C:\pz97\main\Src\Loadmap.c` → 内部代号 `pz97`，VC++ 构建。
+- 二进制泄露源路径：`C:\pz97\main\Src\Text.c`、`C:\pz97\main\Src\Loadmap.c` → 内部代号 `pz97`。
 
-### 1.2 导入表（判断可行性的关键）—— 同时导入两套文字能力
-- **`GDI32.dll`**：`CreateFontA`、`TextOutA`、`GetTextExtentPoint32A`、`SetTextColor`、`SetBkColor`、`SetBkMode`
-- **`USER32.dll`**：`LoadStringA`、`DialogBoxParamA`、`CreateDialogParamA`、`SetDlgItemTextA`、`GetDlgItemTextA`、`MessageBoxA`
-- **`KERNEL32.dll`**：`GetPrivateProfileStringA`、`MultiByteToWideChar` / `WideCharToMultiByte`、`LCMapStringA/W`、`CompareStringA/W`
+### 1.2 导入表（IDA 实读，已确认代理 DLL 目标）
+游戏确实 import 了 **`WINMM`**（11 个函数），这是 ASI 代理方案成立的关键：
+`timeGetTime`、`timeSetEvent`、`timeKillEvent`、`timeBeginPeriod`、`timeGetDevCaps`、
+`mciSendCommandA`、`mciGetErrorStringA`、`auxGetDevCapsA`、`auxGetVolume`、`auxSetVolume`、`auxGetNumDevs`。
+→ **`dist/common/winmm.dll`（Ultimate ASI Loader）会被游戏加载**，注入链路成立。
 
-> 含义：游戏同时具备「GDI 文本渲染」与「对话框/菜单/字符串表 API」能力。
-> **但静态无法确定游戏内文字到底走哪条路**（见 §3 开放问题）。
+其它相关模块（节选）：
+- `GDI32`：`CreateFontA`、**`TextOutA`**、`GetTextExtentPoint32A`、`SetTextColor`、`SetBkColor`、`SetBkMode`、`GetDeviceCaps`、`CreateSolidBrush`、`DeleteObject`、`GetStockObject`
+- `USER32`：`LoadStringA`、`DialogBoxParamA`、`CreateDialogParamA`、`SetDlgItemTextA`、`GetDlgItemTextA`、`MessageBoxA`、`SetWindowTextA`、`GetWindowTextA`、`SendMessageA`、`wsprintfA`
+- `KERNEL32`：`GetPrivateProfileStringA`、`MultiByteToWideChar`/`WideCharToMultiByte`、`LCMapStringA/W`、`CompareStringA/W`、`FindResourceA`/`LoadResource`/`LockResource`
+- `DDRAW`（`DirectDrawCreate`）、`DPLAYX`、`SMACKW32`（Smacker 视频）、`WSOCK32`、`CLUBDLL`、`MSS32`（Miles 音频）、`COMDLG32`、`OLE32`
 
 ### 1.3 资源段 `.rsrc` 几乎是空的
-- 只有一个 Icon（0x2E8）。**无字符串表、无对话框模板、无菜单资源**。
-- 结论：PG2 的界面文字**不在 Win32 资源里**，全部是内联 C 字符串或外部文件。
+- 仅一个 Icon。**无字符串表 / 对话框模板 / 菜单资源** → 界面文字全在内联 C 串或外部 `.txt`。
 
-### 1.4 文字的两大来源
+### 1.4 文字的两大来源（翻译载体）
 1. **外部行式 `.txt`（纯 ASCII、按行索引、无 `key=value`）**：
-   - `GUI97.TXT`（440 行：国家名 / 胜利类型 / UI 文本如 "Next Unit"、"Cancel Move"）
-   - `NAMES.TXT`（400 行：指挥官人名，Ackenheil、Adler…）
-   - `EQUIP97.TXT`（586 行：装备/单位名，StuG IIIG、Pz IVD、Me-109f…）
-   - `MISC.TXT`（27 行：地形类型 + 少量 UI 碎片）
-   - `BLANK.TXT`（空文件）
-   - `SCENARIO/*.TXT`（**306 个**场景文本）
-   - 仓库基线已存入 `Resources/ENG/`（顶层 5 个 + `SCENARIO/` 306 个），`Resources/CHS/` 为待翻译工作副本（初始=英文）。
-2. **EXE 内联 C 串**：菜单、对话框项、错误信息、格式化串（如 `"Player %d"`、`"SaveScenario : Unable to save scenario strings."`）。
+   `GUI97.TXT`(440) / `NAMES.TXT`(400) / `EQUIP97.TXT`(586) / `MISC.TXT`(27) / `BLANK.TXT`(空)
+   + `SCENARIO/*.TXT`（**306** 个）。仓库基线已存 `Resources/ENG/`，`Resources/CHS/` 为待译工作副本。
+2. **EXE 内联 C 串**：菜单 / 对话框项 / 错误信息 / 格式化串。
 
-### 1.5 自带位图字体（游戏内文字字形来源）
-- 二进制引用：`fontpg.dat` / `fontfra.dat` / `fontgrm.dat`。
-- 磁盘上「缺失」——它们**打包在 13 MB 的 `PANZER2.DAT` 档案里**（SSI 打包格式，与 `BIGFLAGS.SHP`/`BR_01.SHP` 同类）。
-- `fontpg`=默认(英)，`fontfra`=法语，`fontgrm`=德语。
+### 1.5 自带位图字体 + 两套并存的语言系统（IDA 实读）
+- 字体加载器 **`sub_43B0BC` @ 0x43B0BC**（字符串 `fontpg.dat`@0x4A7394、`fontfra.dat`@0x4A73A0、`fontgrm.dat`@0x4A73AC）：
+  ```c
+  if ( Locale == 9 )        wsprintfA(&Name,"fontpg.dat"); // 英语
+  else if ( Locale == 12 )  wsprintfA(&Name,"fontfra.dat");// 法语
+  else                     wsprintfA(&Name,"fontgrm.dat");// 德语（默认）
+  dword_538958 = sub_481710(&Name,&v1,0);  // 加载位图字体文件
+  sub_43B17F(dword_538958);                // 设为当前字体
+  ```
+  - `Locale` 全局 @ 0x4AD758（9=英 / 12=法 / 默认=德）。
+  - `sub_43B17F` @ 0x43B17F：置 `dword_53895C = a1`（当前字体结构），调 `sub_43B9AF(227)`。
+- **第二套 i18n（Win32 对话框/菜单路径）**：`sub_4164DE` @ 0x4164DE 读
+  `GetPrivateProfileStringA("language","type",...)` → `dword_4A0FD8`（0=英/1=法/2=德/3=西），
+  并 `LoadLibraryA("%s\\%s")` 加载**语言 DLL**（`english.dll` 等），同时
+  `CreateFontA(-16,0,0,0,0,0,0,0,0x10,0,0,2,2,"Arial")` 建 GDI Arial 字体。
+  → 说明存在「语言 DLL」扩展点，可作为对话框/菜单中文的另一杠杆。
 
-### 1.6 原版就带多语言框架（好消息）
-- 紧挨 `Text.c` 出现：`fontpg.dat fontfra.dat fontgrm.dat … .deu .fra .txt %s%s`
-- 说明游戏用**语言后缀拼文件名**加载文本/字体 —— 原版已支持德(`.deu`)/法(`.fra`)。
-- `pz2.int`（40 字节）= 一组 16-bit 小端整数（127/100/1,1…），**不像语言码**（疑似视频/难度配置），非翻译载体。
+### 1.6 原版多语言框架
+- `fontpg/fontfra/fontgrm` + `.deu/.fra` + `%s%s` 拼文件名 → 原版已支持德/法。
+- `pz2.int`（40 字节，16-bit 整数 127/100/1,1…）**不像语言码**（疑似视频/难度），非翻译载体。
 
 ---
 
-## 2. 汉化路线（分阶段，按依赖排序）
+## 2. 渲染管线（IDA 实读，已完全厘清）
 
-### 阶段 0 · 文本翻译（最简单，基本不用动程序）
-- 把 `Resources/ENG` 下的 `.txt` **按行替换**成中文，保持行数/顺序（位置索引）。
-- 编码：若走 TTF 重定向 → GBK(936) 或 UTF-8；若保留位图字体 → 不可行，须换路线。
+```
+调用者(37处) ──► sub_43B19F(x,y,surface,Format,va)   @0x43B19F  ← ★主文字API(printf式)
+                    │ vsprintf(Format,va) → Source(0x538960)
+                    ▼
+                 sub_43B2C2(x,y,color_table=&byte_538F40,Str,surface)  @0x43B2C2  ← ★逐字符 blit
+                    │ 遍历 Str：换行(y+=*(WORD*)(dword_53895C+8)+2) / 否则
+                    ▼   调 sub_428813() 画单字，x += sub_4287F3()(字宽)
+                 sub_428813(surface,x,y,font,ch,color_table)  @0x428813  ← 直接像素写帧缓冲(NOT GDI)
+```
 
-### 阶段 1 · 字体渲染重定向（核心，决定成败）
-- 在 `PG2UK220.EXE` 里定位 `Text.c` 的 `fontpg.dat` 字形表 + 逐字符 blit 函数，
-  把它**重定向到 GDI TTF**（如宋体/SimSun），宽度用已导入的 `GetTextExtentPoint32A` 计算以保持排版。
-- 此步完成后，上面所有 `.txt` 中文即可显示。
-- 备选（更轻）：烘焙一套 CJK 位图字体，替换 `fontpg.dat`（需拆/回包 `PANZER2.DAT`）。
+**关键事实（纠正早期假设，2026-11-14 汇编逐条核对）：**
+- **游戏内文字不走 GDI，而是直接写进一个软件帧缓冲。** `sub_428813` 的核心：
+  ```c
+  H   = *(void**)dword_53895C;            // 全局绘图面 → H 头
+  pix = *(BYTE**)H;                       // H[0] = 像素基址
+  pit = *(int*)(H+4) + 1;                 // H[1] = pitch-1 → pitch
+  clX = surf[1]; clY = surf[2];           // 裁剪原点（绘制时加到 x/y）
+  dst = pix + pit*(clY + gy) + (clX + gx);// 目标像素地址
+  // 启用 xlat(a7=colorTable)：_AL=src; xlat; if(_AL!=-1) *dst=_AL;   ← 单字节写入！
+  ```
+  → 帧缓冲确认为 **8 位调色板**表面（每像素 1 字节 = 调色板索引）。
+- **`sub_43B2C2` 的第 5 参 `surface` 在 `sub_428813` 内「未被使用」**；真正绘图面来自全局
+  **`dword_53895C`**（0x53895C），它就是 `sub_428813` 的绘图面参数。故 hook 时绘图面应从该全局读取，
+  无需依赖第 5 参。
+- `dword_53895C` 本身即 `DrawSurface` 结构（非指针）：`[0]`=H 头指针、`[1]`=clipX、`[2]`=clipY、
+  `[3]`=maxX、`[4]`=maxY；`H[0]`=像素基址、`H[1]`=pitch-1、`H[2]`=height-1。
+- `CreateFontA` 只在 `sub_4164DE` 出现 1 次（Arial，给语言 DLL/对话框用）；
+  `TextOutA` 只在 `sub_44AF0D`（真实 Win32 对话框 `hDlg`，case 89–92）出现 1 次。
+  → **GDI 对游戏内主文字是边缘路径，主文字=位图字体逐像素 blit。**
 
-### 阶段 2 · EXE 内联串（需 IDA + 补丁）
-- 菜单/对话框/错误信息（`SetDlgItemTextA`/`SetWindowTextA`/`MessageBoxA`）替换成中文；
-  因中文更长且多字节，需把串重定位到新字符串池。
-- 按需把中文语言码（如 `.chs`）加进后缀表。
+---
+
+## 3. 开放问题 → 已全部解答（2026-11-14 IDA）
+
+| 原问题 | 结论 | 证据 |
+|---|---|---|
+| 代理 DLL 目标（是否真 import winmm） | ✅ 是，winmm 被 import → `winmm.dll` 代理成立 | §1.2 |
+| 游戏内文字走位图 blit 还是 GDI TextOutA | ✅ **位图字体逐像素写帧缓冲**，非 GDI | §2 / `sub_428813` |
+| 字形绘制函数地址（重定向点） | ✅ `sub_43B19F`(主API,37调用) / `sub_43B2C2`(blit) / `sub_428813`(像素写) | §2 / §6 |
+| 字体文件选择逻辑 | ✅ `Locale`(9/12/默认)→fontpg/fontfra/fontgrm | `sub_43B0BC` |
+| 内联串 / 对话框中文 | 走 Win32 对话框(`hDlg`)+`SetDlgItemTextA`/`TextOutA`，另有语言 DLL(`english.dll`)机制 | `sub_44AF0D`/`sub_4164DE` |
+
+**「1 天 vs 1 个月」的判定**：是**较难**那条——中文必须渲染进 8/16 位软件帧缓冲，
+不能简单换字体名。但好消息是**完美收敛在单一函数 `sub_43B19F`/`sub_43B2C2`**，改动面极小。
+
+### 3.1 推荐 hook 方案（已采用，见 `PG2CHS_DLL`）
+- **首选 hook `sub_43B2C2`（@0x43B2C2）**：它已拿到最终串 `Str`、坐标 `x,y`、颜色表、surface，
+  无需处理 `va_list`，是最「手术刀」级切入点。签名（cdecl，汇编压栈核对）：
+  ```c
+  int __cdecl sub_43B2C2(int x, int y, const unsigned char* colorTable, const char* text, void* surface);
+  ```
+  - 调用处压栈（右→左）：`surface`→`x`→`y`→`dword_53895C`→`c`→`colorTable`，`add esp,14h`(5×4)✓。
+- **Hook 实现方式（MVP，已在 `PG2CHS_DLL/dllmain.cpp`）**：**不用 MinHook/NuGet**，纯 Win32
+  **手动 detour + 跳板**（与参考项目 MajestyIIExtend 同思路，规避 msvc-wine 下 NuGet 还原的不确定性）。
+  `sub_43B2C2` 经 IDA 确认 prologue（GOG `PG2UK220.EXE`）：
+  ```
+  0x55            push ebp        (1)
+  8B EC           mov ebp, esp    (2)
+  83 EC 10        sub esp, 10h    (3)
+  53              push ebx        (1)   ← 下一条指令边界在偏移 6
+  ```
+  relocate 长度取 **6 字节**（恰好落在 `push ebx` 之前，避免把 3 字节的 `sub esp,10h` 拦腰切断）；
+  跳板 = 原 6 字节 + `E9 rel32` 回跳到 `addr+6`（共 11 字节，`VirtualAlloc` RWX）。
+  `g_origDrawText` = 跳板指针，供纯 ASCII 串零回归调用。DllMain 中先检查入口首字节 `0x55(push ebp)`
+  作版本闸门——若 EXE prologue 不符（疑似版本不同）则放弃 hook，游戏仍以英文运行（安全降级）。
+- **CJK 字形合成（已实现 MVP）**：
+  对含 GBK 双字节（引导字节 `>=0x81`）的字符串，**整串自绘**：用 GDI
+  `GetGlyphOutline(GGO_GRAY8_BITMAP)` 取字形覆盖掩码（自动归一化 0..255），
+  经同一张 `colorTable`(xlat) 把覆盖值→调色板索引，写进 8 位帧缓冲（用 §2 面结构）。
+  ASCII 与 CJK 均用 GDI 同字体渲染（保持一致）；步进用 `gm.gmCellIncX`。
+- **纯 ASCII 字符串**：直接调原函数（蹦床），零回归。
+- **部署形态**：产物 `PG2CHS_DLL.dll` 改名 **`PG2CHS_DLL.asi`** 放游戏根目录，由 `winmm.dll`
+  （Ultimate ASI Loader）自动加载（ASI Loader 默认加载同目录 `.asi`）。
+
+### 3.2 运行时地址换算（ASI 内）
+```c
+HMODULE hMod = GetModuleHandleA("PG2UK220.EXE");
+// ImageBase = 0x400000；偏移 = VA - 0x400000
+void* pDrawText = (BYTE*)hMod + (0x43B2C2 - 0x400000);   // hook 入口
+DWORD* pSurface  = (DWORD*)((BYTE*)hMod + (0x53895C - 0x400000)); // dword_53895C（DrawSurface 本身）
+```
+```c
+struct DrawSurface { void* H; int clipX, clipY, maxX, maxY; };   // 位于 0x53895C
+struct SurfaceHeader { void* pixels; int pitchMinus1, heightMinus1; }; // *H
+// 像素地址 = H->pixels + (H->pitchMinus1+1)*(clipY+gy) + (clipX+gx)，写 1 字节调色板索引
+```
+
+---
+
+## 4. 汉化路线（按依赖排序，已据 IDA 修正）
+
+### 阶段 0 · 文本翻译（不动程序）
+- `Resources/ENG` 的 `.txt` 按行替换成中文（保持行数/顺序）。编码用 **GBK(936)**（与游戏 ANSI/DBCS 路径一致）。
+
+### 阶段 1 · 帧缓冲字体重定向（核心，决定成败）
+- 在 ASI(DLL) 里 hook `sub_43B2C2`/`sub_43B19F`，对 CJK 走「GDI 取字形 → 写帧缓冲」合成（§3.1）。
+- 字体选型：`Fonts/` 放 **SimSun(宋体) / Microsoft YaHei(微软雅黑)**，GDI `CreateFont` 时指定。
+- 完成后 `Resources/CHS` 全部中文即可显示。
+
+### 阶段 2 · EXE 内联串 / 对话框中文
+- Win32 对话框路径（`sub_44AF0D` 的 `hDlg` + `SetDlgItemTextA`/`TextOutA`）及语言 DLL 机制
+  （`english.dll` → 可加 `chinese.dll` 或 hook `LoadStringA`）→ 菜单/对话框/错误信息中文。
+- 内联 C 串：重定位到新字符串池 + 重定向引用（需 IDA 列 xref 清单）。
 
 ### 阶段 3 · 验证
-- 排版（CJK 字更宽，控件/定位可能溢出，需调间距）、代码页、确认不再强依赖 `PANZER2.DAT` 里的位图字体。
+- 排版（CJK 更宽 → 控件/定位可能溢出，需调间距）、GBK 代码页、确认不再强依赖 `PANZER2.DAT` 里的位图字体。
 
 ---
 
-## 3. 当前最大卡点（必须用 IDA 解开）
-
-**游戏内文字到底走「位图字体 blit」还是已走「GDI TextOutA」？**
-两者导入都在（§1.2），无法从静态字符串断定。这点决定项目是
-**1 天（已 GDI：换字体名 + 代码页即可）** 还是 **1 个月（位图字体：重定向 blit / 烘焙 CJK 字库）**。
-
-### 用 IDA + ida-pro-mcp 优先确认的清单
-1. `CreateFontA` 与 `fontpg.dat` 的交叉引用 → 定渲染路径。
-2. 字形绘制函数地址（blit 或 TextOut 调用点）→ 重定向点。
-3. 内联字符串的引用清单 → 补丁清单。
-4. **代理 DLL 目标**：若走 ASI 注入，须确认 `PG2UK220.EXE` 实际加载的、可被代理的系统 DLL
-   （winmm / dsound / 其它）—— 当前 `dist/common/winmm.dll` 是按参考项目默认放置的占位，
-   **尚未验证 PG2 是否真的 import winmm**。Ultimate ASI Loader 默认加载 `scripts\*.asi`。
-
----
-
-## 4. 已搭好的工程骨架（本仓库）
-
+## 5. 已搭好的工程骨架（本仓库）
 ```
 PanzerGeneral2CHS/
-├─ LICENSE                      HJNCSA-Core-1.0（与参考项目一致）
-├─ LICENSES/                    ASILoader / Apache-2.0 / MinHook / stb / 思源
-├─ README.md                    标准免责声明 + 本档案摘要 + 目录导航
-├─ .github/workflows/build-release.yml   资源打包 CI（build + publish 两段）
-├─ .gitignore / .gitattributes  资产 -text（防换行符损坏）
+├─ LICENSE / LICENSES/          HJNCSA-Core-1.0 + ASILoader/Apache-2.0/思源（MinHook、stb 许可备用，当前未用）
+├─ README.md                    标准免责声明 + 本档案摘要
+├─ .github/workflows/build-release.yml   资源打包 CI（build + publish 两段，msvc-wine v141 x86）
 ├─ Documents/research_handoff.md         ← 本文件
-├─ PG2CHS_DLL/                  ASI/DLL 源码（VS2017 v141, Win32+x64, Win10 SDK 26100）
-│                                  ★ 用户已建，dllmain.cpp 目前为空桩
-├─ Resources/
-│  ├─ ENG/                      游戏原始英文文本基线（翻译源）
-│  └─ CHS/                      中文翻译工作副本（初始=英文，待译）
-├─ Fonts/                       CJK 字体占位（具体字体待定，见 §3）
-├─ dist/                        构建输入源：dist/common/winmm.dll(ASI Loader) + 必读说明.txt
-├─ Tools/ci/                    build_release.py（装配 zip）/ verify_release.py
-└─ build_out/                   构建产物输出（gitignore）
+├─ PG2CHS_DLL/                  ASI/DLL 源码（VS2017 v141, Win32+x64）—— dllmain.cpp 已实现 MVP（手动 detour + CJK 字形合成）
+├─ Resources/{ENG,CHS}/         英文基线 / 中文工作副本（311 文件，已入库）
+├─ Fonts/                       CJK 字体占位（SimSun/YaHei，待放入）
+├─ dist/common/                 winmm.dll(ASI Loader, MIT) + 必读说明.txt
+├─ Tools/ci/                    build_release.py / verify_release.py / build_dll_local.py
+└─ build_out/                   构建产物（gitignore）
 ```
 
 ---
 
-## 5. 参考项目（同作者，可复用其模式）
+## 6. IDA 符号地址速查表（PG2UK220.EXE，ImageBase=0x400000）
+
+| 符号 | 地址 | 作用 |
+|---|---|---|
+| `sub_43B0BC` | 0x43B0BC | 字体加载器（选 fontpg/fontfra/fontgrm） |
+| `sub_43B17F` | 0x43B17F | 置当前字体 `dword_53895C` |
+| `sub_481710` | 0x481710 | 文件打开/加载（字体文件） |
+| `sub_43B19F` | 0x43B19F | **主文字 API（printf 式，37 调用者）** |
+| `sub_43B2C2` | 0x43B2C2 | **逐字符 blit（★推荐 hook 点）** |
+| `sub_428813` | 0x428813 | **单字像素写帧缓冲（NOT GDI）** |
+| `sub_4287F3` | 0x4287F3 | 取单字宽度 |
+| `sub_43B9AF` | 0x43B9AF | 设字体/颜色状态（参数 227/1/6） |
+| `sub_44AF0D` | 0x44AF0D | 界面分项渲染（仅 case89–92 用 GDI TextOutA 于 hDlg） |
+| `sub_4164DE` | 0x4164DE | 初始化+读 language.ini+LoadLibrary 语言 DLL+CreateFont(Arial) |
+| `sub_413370` | 0x413370 | **析构/清理**（释放 DDraw 面 + free 字体）—— 非渲染器 |
+| `Locale`     | 0x4AD758 | 语言全局（9=英/12=法/默认=德） |
+| `dword_4A0FD8` | 0x4A0FD8 | 语言码（0=英/1=法/2=德/3=西，来自 language.ini） |
+| `dword_538958` | 0x538958 | 已加载位图字体句柄 |
+| `dword_53895C` | 0x53895C | **主屏绘图面结构本身**（非指针；`[0]`=H 头→`[0]`=像素基址、`[1]`=pitch-1、`[2]`=height-1；`[1..4]`=clipX/clipY/maxX/maxY） |
+| `byte_538F40` | 0x538F40 | 文字颜色 xlat 表（256 项，0xFF=透明） |
+| `dword_515D40` | 0x515D40 | **主绘制 surface 结构**（[0]=像素基址,[1]=xoff,[2]=yoff,[4]=pitch-1） |
+| `Source`     | 0x538960 | vsprintf 输出缓冲（最终文本串） |
+| `fontpg.dat` | 0x4A7394 | 英文字体文件名串 |
+| `fontfra.dat`| 0x4A73A0 | 法文字体文件名串 |
+| `fontgrm.dat`| 0x4A73AC | 德文字体文件名串 |
+
+> 注：`sub_413370` 早期曾被误判为渲染器，实为析构函数（含 `free(dword_538958)`）。真正渲染入口是 `sub_43B19F`。
+
+---
+
+## 7. 参考项目（同作者，可复用其模式）
 - `G:/Projects/ArmyMenCHS` —— 多代玩具兵大战，ASI/内存补丁，三段式 CI。
 - `G:/Projects/MajestyIIExtend` —— Majesty2，ASI + 字体烘焙(DDS) + texts.zip，msvc-wine CI。
-- `G:/Projects/SR_GAME_CHINESE` —— 黑道圣徒，ASI + stb_truetype 现场生成字形 + le_string 替换。
+- `G:/Projects/SR_GAME_CHINESE` —— 黑道圣徒，ASI + `stb_truetype` 现场生成字形 + `le_string` 替换。
+  （SR 项目的「GDI/ttf 取字形 → 写缓冲」思路与本作 §3.1 最接近，可重点参考其 DLL 实现。）
 
-> 本仓库的 LICENSE / 工作流 / 资源打包 CI 思路即取自上述三者。
+> 本仓库的 LICENSE / 工作流 / 资源打包 CI 思路取自上述三者；CJK 字形合成可借鉴 SR 的 stb_truetype 路线。

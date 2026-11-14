@@ -34,11 +34,12 @@ def pe_is_32bit_dll(data: bytes) -> bool:
     e_lfanew = int.from_bytes(data[0x3C:0x40], "little")
     if data[e_lfanew:e_lfanew + 4] != b"PE\x00\x00":
         return False
+    # PE 签名(4) + COFF 头(20)。可选头 magic 在 COFF 偏移 20 处。
     magic = int.from_bytes(data[e_lfanew + 4 + 20:e_lfanew + 4 + 22], "little")
     if magic != 0x10B:          # 0x10B = PE32（32 位）
         return False
-    # Characteristics 含 0x2000（DLL）
-    ch = int.from_bytes(data[e_lfanew + 4 + 22:e_lfanew + 4 + 24], "little")
+    # Characteristics 是 COFF 头的最后 2 字节（COFF 偏移 18），含 0x2000（DLL）。
+    ch = int.from_bytes(data[e_lfanew + 4 + 18:e_lfanew + 4 + 20], "little")
     return bool(ch & 0x2000)
 
 

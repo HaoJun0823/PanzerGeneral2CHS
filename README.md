@@ -35,8 +35,9 @@
 ### 玩家：安装
 下载 Release 里的 zip，**解压到游戏根目录**（exe 所在处），覆盖同名文件。
 
-> ⚠️ 安装步骤与细节以包内 `必读说明.txt` 为准。当前阶段为工程初始化，
-> 可用的发布包将在文本翻译 + 渲染重定向完成后产出。
+> ⚠️ 安装步骤与细节以包内 `必读说明.txt` 为准。渲染重定向（CJK 字形合成）已完成 MVP，
+> 当前可用的发布包已能注入并渲染中文；缺的是 `Resources/CHS/` 的中文文本翻译
+> （目前仍是英文基线，需逐行汉化）。
 
 ### 开发者：构建
 ```bash
@@ -57,13 +58,15 @@ CI（GitHub Actions）在 push 主分支时自动：msvc-wine 编译 32 位 ASI 
 
 ---
 
-## 两个必须知道的铁律（待渲染路径确定后细化）
+## 两个必须知道的铁律
 
 1. **`Resources/CHS/` 下的文本表是「行式位置索引」**：翻译时**保持行数与顺序不变**，
    逐行替换。任一行的增删都会导致游戏按行号取文本时整体错位。
-2. **CJK 字形必须经渲染重定向或位图字库提供**：游戏原生位图字体不含中文字形，
-   纯替换 `.txt` 文本会出现「方块/空白」。具体走 GDI TTF 重定向还是烘焙 CJK 位图字体，
-   取决于 IDA 确认的渲染路径（见 `research_handoff.md` §3）。
+2. **CJK 字形走「GDI TTF → 8 位帧缓冲」合成（已确认并实现 MVP）**：游戏原生位图字体
+   不含中文字形，纯替换 `.txt` 文本会出现「方块/空白」。渲染路径已用 IDA 锁定——
+   游戏内文字是 8 位调色板帧缓冲的逐像素写入，本补丁在 hook 点用 GDI `GetGlyphOutline`
+   取中文字形、经游戏颜色表写进帧缓冲（见 `research_handoff.md` §2 / §3.1）。
+   当前 MVP 直接使用系统 CJK 字体（微软雅黑 / 宋体），无需额外字库文件。
 
 ---
 
@@ -75,11 +78,11 @@ CI（GitHub Actions）在 push 主分支时自动：msvc-wine 编译 32 位 ASI 
 | `PG2CHS_DLL/` | ASI/DLL 汉化插件源码（VS2017 v141，Win32+x64，Win10 SDK 26100） |
 | `Resources/ENG/` | 游戏原始英文文本基线（翻译源，行式索引） |
 | `Resources/CHS/` | 中文翻译工作副本（初始=英文，待译；保持行数/顺序） |
-| `Fonts/` | 汉化用 CJK 字体（具体字体待定，见 research_handoff §3） |
+| `Fonts/` | 可选自包含 CJK 字体（当前 MVP 直接用系统字体：微软雅黑/宋体） |
 | `dist/` | 构建**输入**源：ASI Loader（`common/winmm.dll`）+ `必读说明.txt` |
 | `Tools/ci/` | 构建、打包、校验脚本 |
 | `build_out/` | 构建产物输出（gitignore，不入版本控制） |
-| `LICENSES/` | 第三方依赖许可证（ASILoader / Apache-2.0 / MinHook / stb / 思源） |
+| `LICENSES/` | 第三方依赖许可证（ASILoader / Apache-2.0 / 思源；MinHook、stb 备用） |
 
 ---
 
