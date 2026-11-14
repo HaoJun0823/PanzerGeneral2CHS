@@ -17,8 +17,9 @@ name: build-release
 #   也不需要旧方案「ubuntu + msvc-wine 下载 4GB 工具链」的 30 分钟冷启动。
 #   DLL 仍是 PE32（32 位），由 verify_release.py 硬校验。
 #
-#   ilammy/msvc-dev-cmd 把 cl / INCLUDE / LIB 写进 GITHUB_ENV，后续步骤都继承。
-#   build_dll_local.py 在 cl 位于 PATH 时直接沿用这些环境变量，不覆盖。
+#   不依赖第三方 action：编译步骤里用 vswhere 定位 vcvarsall.bat，
+#   在同一个 cmd 子进程里 `call vcvarsall x86` 后直接跑 build_dll_local.py。
+#   cl 位于 PATH 时脚本直接沿用 INCLUDE/LIB，不覆盖；打包/校验是纯 Python。
 # ============================================================================
 
 on:
@@ -69,25 +70,22 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: 初始化 MSVC x86 编译环境
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x86
-
-      - name: 编译器诊断（cl / Python / 目标架构）
-        shell: bash
-        run: |
-          set -euo pipefail
-          cl 2>&1 | head -3 || true
-          python -c "import shutil,sys; p=shutil.which('cl') or shutil.which('cl.exe'); print('cl =',p); sys.exit(0 if p else 1)"
-          python --version
-
+      # vswhere + vcvarsall.bat 只包住编译这一步；后续打包/校验是纯 Python，
+      # 不需要编译器环境。全部用 runner 自带工具，无第三方 action 依赖。
       - name: 编译 PG2CHS_DLL（Win32 / x86）
         if: ${{ github.event.inputs.skip_dll != 'true' }}
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          python Tools/ci/build_dll_local.py --clean
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) { throw "找不到 vswhere.exe: $vswhere" }
+          $vs = & $vswhere -latest -products * -property installationPath
+          if (-not $vs) { throw "vswhere 未找到 Visual Studio" }
+          $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvarsall.bat'
+          if (-not (Test-Path $vcvars)) { throw "找不到 vcvarsall.bat: $vcvars" }
+          Write-Host "VS: $vs"
+          cmd /c "`"$vcvars`" x86 && where cl && python --version && python Tools\ci\build_dll_local.py --clean"
+          if ($LASTEXITCODE -ne 0) { throw "MSVC x86 编译失败 (exit $LASTEXITCODE)" }
 
       - name: 跳过 ASI 编译
         if: ${{ github.event.inputs.skip_dll == 'true' }}
