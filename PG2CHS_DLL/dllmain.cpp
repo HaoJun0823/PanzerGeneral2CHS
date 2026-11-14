@@ -45,6 +45,7 @@
 // ============================================================================
 
 #include "pch.h"
+#include <intrin.h>
 #include <vector>
 #include <string>
 
@@ -385,6 +386,9 @@ static int RenderStringCJK(int x, int y, const unsigned char* colorTable,
     int curX = x + xoff, curY = y + yoff;
     int lines = 0, totalPx = 0;
     int len  = (int)strlen(text);
+    // 译文文件为对齐原始字节偏移，行尾补了半角空格；排版时不计入，
+    // 否则居中/右对齐会整体偏左（文件里的字节保持不变）。
+    while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t')) --len;
 
     for (int i = 0; i < len; )
     {
@@ -513,6 +517,30 @@ static void UninstallAll()
 // ===================== 各挂钩函数 ==========================================
 static int g_dbgDraw = 0, g_dbgMeasure = 0, g_dbgCharW = 0;
 
+// 诊断：打印 text 指针的「内存上下文」。
+// 目的——判定字符串是被截断（后随 NUL），还是指针落在了行中间（前有残字）。
+// 这两种病因的修法完全不同，必须靠实机数据区分，不能靠猜。
+static void DumpTextContext(const char* p)
+{
+    MEMORY_BASIC_INFORMATION mbi = { 0 };
+    if (VirtualQuery(p, &mbi, sizeof(mbi))) {
+        const char* ty = (mbi.Type == MEM_MAPPED) ? "MAPPED"
+                       : (mbi.Type == MEM_IMAGE)  ? "IMAGE" : "PRIVATE";
+        Log("   region: base=%p size=%08X type=%s alloc=%08X\n",
+            mbi.BaseAddress, (unsigned)mbi.RegionSize, ty, (unsigned)mbi.AllocationBase);
+    }
+    if (!IsBadReadPtr(p - 48, 48)) {
+        Log("   pre[-48]: ");
+        for (int i = -48; i < 0; ++i) Log("%02X ", (BYTE)p[i]);
+        Log("\n");
+    }
+    if (!IsBadReadPtr(p, 64)) {
+        Log("   post   : ");
+        for (int i = 0; i < 64; ++i) Log("%02X ", (BYTE)p[i]);
+        Log("\n");
+    }
+}
+
 // 绘制：纯 ASCII 走原函数（零回归）；含 GBK 走本 DLL 合成
 static int __cdecl HookDrawText(int x, int y, const unsigned char* colorTable,
                                 const char* text, void* surface)
@@ -522,11 +550,50 @@ static int __cdecl HookDrawText(int x, int y, const unsigned char* colorTable,
     for (const char* p = text; *p; ++p) { if ((BYTE)*p >= 0x81) { hasCJK = true; break; } }
     if (!hasCJK) return g_origDrawText(x, y, colorTable, text, surface);
 
-    if (g_cfg.debug && g_dbgDraw < 5) {
-        Log("draw CJK #%d (%d,%d) surface=%p ink=%02X text=", g_dbgDraw, x, y, surface,
-            colorTable ? colorTable[0] : 0xFF);
-        for (int k = 0; k < 20 && text[k]; ++k) Log("%02X ", (BYTE)text[k]);
+    if (g_cfg.debug && g_dbgDraw < 40) {
+        int n = (int)strlen(text);
+        Log("D#%d ret=%p (%d,%d) s=%p p=%p len=%d ink=%02X txt=", g_dbgDraw,
+            _ReturnAddress(), x, y, surface, text, n, colorTable ? colorTable[0] : 0xFF);
+        for (int k = 0; k < 48 && k < n; ++k) Log("%02X ", (BYTE)text[k]);
         Log("\n");
+        // 同一指针只 dump 一次，避免主菜单重复重绘刷屏
+        static const char* seen[40] = { 0 };
+        static int seenCount = 0;
+        bool dup = false;
+        for (int k = 0; k < seenCount; ++k) if (seen[k] == text) { dup = true; break; }
+        if (!dup && seenCount < 40) {
+            seen[seenCount++] = text;
+            DumpTextContext(text);
+
+            // 若本次是由 sub_43B19F（格式化绘制）发起的，则顺着栈帧反推它的
+            // format 与真正的调用者——这是判定「文本来源」的决定性证据：
+            //   format 在 .rdata(0x49xxxx) = EXE 内常量
+            //   format 在 .data/heap        = 文件读进来的内容
+            DWORD* pRet = (DWORD*)_AddressOfReturnAddress();
+            if (pRet && pRet[0] == 0x0043B20Bu) {
+                // sub_43B19F 的栈帧位置未知（局部变量/push 数量可能变化），
+                // 直接扫描候选帧：谁的「返回地址」落在 .text(0x401000..0x490000) 就是它。
+                for (int k = 4; k <= 16; ++k) {
+                    DWORD e = (DWORD)(pRet + k);
+                    if (IsBadReadPtr((void*)e, 0x20)) continue;
+                    DWORD cand = *(DWORD*)(e + 4);
+                    if (cand < 0x401000u || cand > 0x490000u) continue;
+                    const char* fmtp = *(const char**)(e + 0x14);
+                    DWORD arg0       = *(DWORD*)(e + 0x18);
+                    Log("   K=%2d caller=%p fmt=%p arg0=%p\n", k, (void*)cand, (void*)fmtp, (void*)arg0);
+                    if (fmtp && !IsBadReadPtr(fmtp, 24)) {
+                        Log("        fmt : ");
+                        for (int i = 0; i < 24 && fmtp[i]; ++i) Log("%02X ", (BYTE)fmtp[i]);
+                        Log("\n");
+                    }
+                    if (arg0 > 0x10000 && !IsBadReadPtr((void*)arg0, 32)) {
+                        Log("        arg0: ");
+                        for (int i = 0; i < 32; ++i) { BYTE b = ((BYTE*)arg0)[i]; if (!b) break; Log("%02X ", b); }
+                        Log("\n");
+                    }
+                }
+            }
+        }
     }
     ++g_dbgDraw;
     return RenderStringCJK(x, y, colorTable, text, surface);
@@ -543,13 +610,17 @@ static short __cdecl HookMeasureText(const char* text)
     if (!EnsureFont()) return 0;
 
     int len = (int)strlen(text), w = 0;
+    while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t')) --len;  // 去掉行尾填充空格
     for (int i = 0; i < len; ) {
         WCHAR wc; int n = DecodeChar(text, i, len, wc);
         if (wc) w += GlyphAdvance(wc);
         i += n;
     }
-    if (g_cfg.debug && g_dbgMeasure < 5)
-        Log("measure CJK #%d len=%d -> %d\n", g_dbgMeasure, len, w);
+    if (g_cfg.debug && g_dbgMeasure < 20) {
+        Log("measure CJK #%d len=%d -> %d txt=", g_dbgMeasure, len, w);
+        for (int k = 0; k < 24 && k < len; ++k) Log("%02X ", (BYTE)text[k]);
+        Log("\n");
+    }
     ++g_dbgMeasure;
     return (short)w;
 }
