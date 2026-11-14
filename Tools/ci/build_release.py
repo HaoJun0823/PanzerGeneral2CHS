@@ -122,6 +122,11 @@ def build(out_root: Path, lang: str, date: str | None, skip_dll: bool, dll_path:
     if readme.is_file():
         shutil.copy2(readme, stage / "必读说明.txt"); copied.append("必读说明.txt")
 
+    # 2b) 运行参数（字体/字号/微调，改后重启游戏即生效）
+    cfg = DIST / "common" / "PG2CHS.ini"
+    if cfg.is_file():
+        shutil.copy2(cfg, stage / "PG2CHS.ini"); copied.append("PG2CHS.ini")
+
     # 3) 顶层文本表（行式位置索引，保持行数/顺序）
     for name in ROOT_TXT:
         src = chs / name

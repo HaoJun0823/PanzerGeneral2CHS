@@ -16,22 +16,31 @@
 //        逐字节 movsx 后调 CharWidth → GBK 高位字节负索引越界 → 崩溃根因
 //    · 0x4287F3  字符宽度查表：short __cdecl(fontObj, ch)
 //        value = *(int*)(fontObj + 0x10 + ch*4) + fontObj，再取该处 int
-//    · 0x53895C  全局「当前字体对象」指针：+8 = 行高，+0x10 = 字形偏移表
+//    · 0x53895C  全局「当前字体对象」指针：+8 = 字形高度（本作 = 8px，行距 = 8+2）
+//                +0x10 = 字形偏移表；字形记录 = { int width; BYTE data[w*h]; }
 //    · 0x538F40  256 字节颜色表：初始化 memset(0xFF)，仅 [0] = 当前文字色
 //                （由 0x43B9AF SetFontColor 写入，初值 0xE3）
 //                → 0xFF 表示透明；可见像素的调色板索引就是 colorTable[0]
+//    · 0x5155B0  表面头（由 Lock 填充）：{ lpSurface, lPitch-1, dwHeight-1 }
+//                Lock 同时把 0x4AC6F0 置 1；只在这段窗口内像素指针有效
 //    · 0x45197D / 0x451A1F  表面 Lock / Unlock（DirectDraw，vtable +0x64/+0x80）
 //                锁定标志在 0x4AC6F0。cnc-ddraw 下 Unlock 才真正提交像素，
 //                所以合成 CJK 时必须自己成对调用。
 //
-// 2) 本 DLL 用「纯 Win32 手动 detour」（无 MinHook / NuGet），挂 3 个点：
+// 2) 本 DLL 用「纯 Win32 手动 detour」（无 MinHook / NuGet），挂 4 个点：
 //    · 0x4287F3  字符查表：高位字节兜底返回半宽，防止其它调用点负索引崩溃
 //    · 0x43B7C4  测宽：含 GBK 时按字符累加 GDI 字形步进
 //    · 0x43B2C2  绘制：纯 ASCII 走跳板调原函数（零回归）；
 //                      含 GBK 时用 GDI GetGlyphOutline 取字形，
 //                      经 Lock/Unlock 后直接写调色板索引 colorTable[0]
+//    · 0x428813  blit 兜底：字形索引为负（GBK 高位被 movsx 的必然结果）直接跳过
 //
-// 3) 部署：PG2CHS_DLL.dll 改名 PG2CHS_DLL.asi，由 dist/common/winmm.dll
+// 3) 字体尺寸：游戏自带位图字体只有 8px 高（fontObj+8），行距 8+2=10。
+//    8px 画汉字是一团糊，故 CJK 默认 12px（可用 PG2CHS.ini 的 FontHeight 覆盖），
+//    字形走 GGO_BITMAP（1bpp，宋体在 12px 有内置点阵 → 最清晰，贴近原作风）。
+//    注意 GGO_GRAY8_BITMAP 的值域是 0..64（非 0..255），阈值必须先归一化。
+//
+// 4) 部署：PG2CHS_DLL.dll 改名 PG2CHS_DLL.asi，由 dist/common/winmm.dll
 //    (Ultimate ASI Loader) 载入；同目录可放 PG2CHS.ini 覆盖配置。
 // ============================================================================
 
@@ -41,11 +50,14 @@
 
 // ===================== 配置（可用同目录 PG2CHS.ini 覆盖） =====================
 static struct Cfg {
-    std::wstring fontName  = L"Microsoft YaHei"; // CJK 字体（依次回退 SimSun 等）
-    int   fontHeight       = 0;    // 字号(px)；0 = 自动取游戏字体行高
+    std::wstring fontName  = L"SimSun";   // CJK 字体（依次回退 微软雅黑 等）
+    int   fontHeight       = 0;    // 字号(px)；0 = 自动（游戏字体仅 8px，CJK 取 12px）
     int   vOffset          = 0;    // 垂直微调（正=下，负=上）
-    int   threshold        = 0x60; // 字形覆盖率阈值 0..255（越大字越细）
+    int   threshold        = 0x60; // 仅 AntiAlias=1 时有效：笔画阈值 0..255（越大越细）
+    bool  antiAlias        = false;// false=GGO_BITMAP 点阵（12px 更清晰，贴近原作风）
+                                   // true =GGO_GRAY8 灰度 + 阈值（大字号更平滑）
     bool  debug            = false;// 是否写详细日志
+    bool  dumpFrame        = false;// 首次画 CJK 时把整个表面 dump 成 PG2CHS_frame.pgm（排查用）
 } g_cfg;
 
 // ===================== 关键地址（VA，ImageBase = 0x400000） =================
@@ -107,11 +119,14 @@ static HDC    g_hdc       = nullptr;   // 离屏 DC（GetGlyphOutline 用）
 static HFONT  g_hfont     = nullptr;   // CJK 字体
 static bool   g_fontOk    = false;     // 字体是否就绪
 static int    g_pxHeight  = 0;         // 实际使用的字号(px)
+static int    g_ascent    = 0;         // 字体基线以上的高度（TEXTMETRIC.tmAscent）
 static DWORD  g_fontObj   = 0;         // 游戏当前字体对象（0x53895C）
-static int    g_lineH     = 0;         // 游戏字体行高（fontObj+8）
+static int    g_lineH     = 0;         // 游戏字体字形高度（fontObj+8，本作 = 8）
+static int    g_dbgDrawLog = 0;        // 已打印的绘制诊断条数
 
 // ===================== 日志 ================================================
 static FILE* g_log = nullptr;
+static wchar_t g_baseDir[MAX_PATH] = { 0 };   // DLL 所在目录（日志/快照都放这里）
 static void Log(const char* fmt, ...)
 {
     if (!g_log) return;
@@ -137,7 +152,9 @@ static void LoadConfig(const wchar_t* dllPath)
     g_cfg.fontHeight = GetPrivateProfileIntW(L"PG2CHS", L"FontHeight", g_cfg.fontHeight, iniPath);
     g_cfg.vOffset    = GetPrivateProfileIntW(L"PG2CHS", L"VOffset",    g_cfg.vOffset,    iniPath);
     g_cfg.threshold  = GetPrivateProfileIntW(L"PG2CHS", L"Threshold",  g_cfg.threshold,  iniPath);
+    g_cfg.antiAlias  = GetPrivateProfileIntW(L"PG2CHS", L"AntiAlias",  g_cfg.antiAlias ? 1 : 0, iniPath) != 0;
     g_cfg.debug      = GetPrivateProfileIntW(L"PG2CHS", L"Debug",      g_cfg.debug ? 1 : 0, iniPath) != 0;
+    g_cfg.dumpFrame  = GetPrivateProfileIntW(L"PG2CHS", L"DumpFrame",  g_cfg.dumpFrame ? 1 : 0, iniPath) != 0;
     if (g_cfg.threshold < 1)   g_cfg.threshold = 1;
     if (g_cfg.threshold > 254) g_cfg.threshold = 254;
 }
@@ -150,12 +167,14 @@ static DWORD GetGameFontObj()
     return *(DWORD*)((BYTE*)h + (ADDR_FONTOBJ - IMAGE_BASE));
 }
 
-// 实际字号：优先配置；否则用游戏字体行高
+// 实际字号：优先配置；否则自动。
+// 游戏自带位图字体只有 8px 高（fontObj+8），直接按 8px 画 CJK 是一团糊，
+// 所以自动档下限取 12px；行距仍按游戏节奏（见 RenderStringCJK 的 lineAdv）。
 static int EffectiveHeight()
 {
     if (g_cfg.fontHeight > 0) return g_cfg.fontHeight;
-    if (g_lineH > 0) return g_lineH;
-    return 16;
+    if (g_lineH >= 12) return g_lineH;
+    return 12;
 }
 
 // 懒初始化 GDI 字体。必须延迟到第一次真正画 CJK 时做：
@@ -186,16 +205,23 @@ static bool EnsureFont()
         if (!f) continue;
         HFONT old = (HFONT)SelectObject(g_hdc, f);
         GLYPHMETRICS gm;
-        DWORD rv = GetGlyphOutlineW(g_hdc, L'\u56FD', GGO_GRAY8_BITMAP, &gm, 0, nullptr, &m);
+        UINT fmt = g_cfg.antiAlias ? GGO_GRAY8_BITMAP : GGO_BITMAP;
+        DWORD rv = GetGlyphOutlineW(g_hdc, L'\u56FD', fmt, &gm, 0, nullptr, &m);
         bool ok = (rv != GDI_ERROR && rv > 0);
-        if (old) SelectObject(g_hdc, old);
+        TEXTMETRICW tm = { 0 };
+        if (ok) GetTextMetricsW(g_hdc, &tm);
         if (ok) {
-            if (g_hfont) DeleteObject(g_hfont);
+            // 关键：字体必须常驻 g_hdc。此前这里把 old 选回去，
+            // 导致后续 GetGlyphOutlineW 用的还是默认系统字体（无 CJK 字形）→ 永远画不出。
+            if (g_hfont && g_hfont != f) DeleteObject(g_hfont);
             g_hfont = f; g_fontOk = true;
-            Log("font: %ls  %dpx  (游戏行高=%d, 阈值=%d)\n",
-                name, g_pxHeight, g_lineH, g_cfg.threshold);
+            g_ascent = tm.tmAscent > 0 ? tm.tmAscent : (g_pxHeight * 4 / 5);
+            Log("font: %ls  %dpx  ascent=%d  游戏字形高=%d  模式=%s\n",
+                name, g_pxHeight, g_ascent, g_lineH,
+                g_cfg.antiAlias ? "gray8" : "1bpp");
             return true;
         }
+        if (old) SelectObject(g_hdc, old);
         DeleteObject(f);
     }
     Log("font: 未找到可用 TrueType CJK 字体，CJK 将跳过绘制\n");
@@ -205,13 +231,15 @@ static bool EnsureFont()
 // 单个字符的字形步进（像素）。测宽与绘制共用，保证两者一致。
 static int GlyphAdvance(WCHAR wc)
 {
-    if (!g_fontOk) return g_pxHeight > 0 ? g_pxHeight : 16;
+    int fb = g_pxHeight > 0 ? g_pxHeight : 12;
+    if (!g_fontOk) return fb;
     MAT2 m = { {0,1},{0,0},{0,0},{0,1} };
-    GLYPHMETRICS gm;
-    if (GetGlyphOutlineW(g_hdc, wc, GGO_GRAY8_BITMAP, &gm, 0, nullptr, &m) != GDI_ERROR
+    UINT fmt = g_cfg.antiAlias ? GGO_GRAY8_BITMAP : GGO_BITMAP;
+    GLYPHMETRICS gm = { 0 };
+    if (GetGlyphOutlineW(g_hdc, wc, fmt, &gm, 0, nullptr, &m) != GDI_ERROR
         && gm.gmCellIncX > 0)
         return gm.gmCellIncX;
-    return g_pxHeight > 0 ? g_pxHeight : 16;
+    return fb;
 }
 
 // 解一个字符：GBK 双字节 / ASCII。返回消费字节数（1 或 2）；孤立高位返回 1 且 wc=0。
@@ -228,39 +256,88 @@ static inline int DecodeChar(const char* text, int i, int len, WCHAR& wc)
     wc = 0; return 1;
 }
 
-// 画一个字形。ink = 当前文字色（colorTable[0]）；
-// 覆盖率 >= 阈值 的像素写成 ink，其余保持原样（透明）。
-static void DrawGlyph(WCHAR wc, int penX, int topY, BYTE ink,
-                      BYTE* pixels, int pitch, int surfH, int clipX, int clipY, int& advOut)
+// 取一个字的字形位图。两种格式：
+//   GGO_BITMAP(1)      每像素 1 bit，行按 32bit 对齐 —— 12px 宋体走字体自带点阵，最清晰
+//   GGO_GRAY8_BITMAP(6) 每像素 8 bit，但值域是 0..64（不是 0..255！），大字号更平滑
+// 返回值 = 缓冲区字节数（0 表示无位图，但 gm 仍有效，可拿 gmCellIncX）
+static DWORD FetchGlyph(WCHAR wc, std::vector<BYTE>& buf, GLYPHMETRICS& gm)
 {
     MAT2 m = { {0,1},{0,0},{0,0},{0,1} };
-    GLYPHMETRICS gm;
-    DWORD bufSize = GetGlyphOutlineW(g_hdc, wc, GGO_GRAY8_BITMAP, &gm, 0, nullptr, &m);
-    advOut = (gm.gmCellIncX > 0) ? gm.gmCellIncX : (g_pxHeight > 0 ? g_pxHeight : 16);
-    if (bufSize == GDI_ERROR || bufSize == 0) return;
+    UINT fmt = g_cfg.antiAlias ? GGO_GRAY8_BITMAP : GGO_BITMAP;
+    DWORD size = GetGlyphOutlineW(g_hdc, wc, fmt, &gm, 0, nullptr, &m);
+    if (size == GDI_ERROR || size == 0) return 0;
+    if (size > 64 * 1024) return 0;                 // 防御非法值
+    buf.resize(size);
+    if (GetGlyphOutlineW(g_hdc, wc, fmt, &gm, size, buf.data(), &m) == GDI_ERROR)
+        return 0;
+    return size;
+}
 
-    std::vector<BYTE> buf(bufSize);
-    if (GetGlyphOutlineW(g_hdc, wc, GGO_GRAY8_BITMAP, &gm, bufSize, buf.data(), &m) == GDI_ERROR)
-        return;
+// 画一个字形。ink = 当前文字色（colorTable[0]）。
+// 坐标：penX/curY 已含 clipX/clipY；baselineY = topY + 字体 ascent。
+// 返回写入的像素数（诊断用）。
+static int DrawGlyph(WCHAR wc, int penX, int baselineY, BYTE ink,
+                     BYTE* pixels, int pitch, int minX, int maxX, int minY, int maxY,
+                     int& advOut)
+{
+    GLYPHMETRICS gm = { 0 };
+    std::vector<BYTE> buf;
+    DWORD size = FetchGlyph(wc, buf, gm);
 
-    int bufPitch = (int)((gm.gmBlackBoxX + 3) & ~3u);            // 行 4 字节对齐
-    int topX  = clipX + penX - (int)gm.gmptGlyphOrigin.x;
-    int baseY = clipY + topY;
+    advOut = (gm.gmCellIncX > 0) ? gm.gmCellIncX : (g_pxHeight > 0 ? g_pxHeight : 12);
+    if (size == 0 || gm.gmBlackBoxX == 0 || gm.gmBlackBoxY == 0) return 0;
 
+    // 行跨距：1bpp 按 32bit(4 字节) 对齐；8bpp 按 4 字节对齐
+    int bufPitch = g_cfg.antiAlias ? (int)((gm.gmBlackBoxX + 3) & ~3u)
+                                   : (int)(((gm.gmBlackBoxX + 31) / 32) * 4);
+
+    // GDI 字形原点：x 向右为正、y 向上为正（相对笔位与基线）
+    int left = penX + (int)gm.gmptGlyphOrigin.x;
+    int top  = baselineY - (int)gm.gmptGlyphOrigin.y;
+
+    int written = 0;
     for (int r = 0; r < (int)gm.gmBlackBoxY; ++r)
     {
-        int sy = baseY + r;
-        if (sy < 0 || sy >= surfH) continue;
+        int sy = top + r;
+        if (sy < minY || sy > maxY) continue;
         const BYTE* row = buf.data() + (size_t)r * bufPitch;
         BYTE* dstRow = pixels + (size_t)sy * pitch;
         for (int c = 0; c < (int)gm.gmBlackBoxX; ++c)
         {
-            if (row[c] < (BYTE)g_cfg.threshold) continue;
-            int sx = topX + c;
-            if (sx < 0 || sx >= pitch) continue;
+            bool on;
+            if (g_cfg.antiAlias) {
+                // 归一化 0..64 → 0..255；早期直接用 0x60=96 比 0..64 导致一个像素都画不出
+                int cov = (int)row[c] * 255 / 64;
+                if (cov > 255) cov = 255;
+                on = cov >= g_cfg.threshold;
+            } else {
+                on = (row[c >> 3] >> (7 - (c & 7))) & 1;
+            }
+            if (!on) continue;
+            int sx = left + c;
+            if (sx < minX || sx > maxX) continue;
             dstRow[sx] = ink;
+            ++written;
         }
     }
+    return written;
+}
+
+// 首次画 CJK 时把整个表面 dump 成 PGM（8 位调色板索引直接当灰度看）。
+// 用于「屏幕上看不到文字」时确认像素到底写没写、写在哪个坐标。
+static void DumpSurfaceOnce(const BYTE* px, int pitch, int h)
+{
+    static bool done = false;
+    if (done || !g_cfg.dumpFrame || !px || pitch <= 0 || h <= 0) return;
+    done = true;
+    wchar_t p[MAX_PATH];
+    wcscpy_s(p, g_baseDir); wcscat_s(p, L"PG2CHS_frame.pgm");
+    FILE* f = _wfopen(p, L"wb");
+    if (!f) { Log("   -> dump 失败（打不开 PG2CHS_frame.pgm）\n"); return; }
+    fprintf(f, "P5\n%d %d\n255\n", pitch, h);
+    fwrite(px, 1, (size_t)pitch * (size_t)h, f);
+    fclose(f);
+    Log("   -> 已 dump 表面 %dx%d -> PG2CHS_frame.pgm\n", pitch, h);
 }
 
 // 整串自绘（含 CJK 时调用）。纯 ASCII 已在 HookDrawText 中分流到原函数。
@@ -291,12 +368,22 @@ static int RenderStringCJK(int x, int y, const unsigned char* colorTable,
     BYTE* pixels = (BYTE*)H->pixels;
     int   pitch  = H->pitchMinus1 + 1;
     int   surfH  = H->heightMinus1 + 1;
-    int   clipX  = ds->clipX;
-    int   clipY  = ds->clipY;
+    if (pitch <= 0 || surfH <= 0) { if (weLocked && g_unlockFn) g_unlockFn(); return 0; }
 
-    // 行高：fontObj+8 + 2（与原函数 0x43B3AA 一致）
-    int lineAdv = (g_lineH > 0 ? g_lineH : EffectiveHeight()) + 2;
-    int curX = x, lines = 0;
+    // 裁剪范围与原 blit 完全一致（0x428836..0x428878）：
+    //   坐标先按原始 clipX/clipY 偏移；边界下限按 max(clip,0)、上限与 pitch-1/height-1 取小
+    int xoff = ds->clipX, yoff = ds->clipY;
+    int minX = xoff > 0 ? xoff : 0;
+    int minY = yoff > 0 ? yoff : 0;
+    int maxX = (ds->maxX < pitch  - 1) ? ds->maxX : pitch  - 1;
+    int maxY = (ds->maxY < surfH  - 1) ? ds->maxY : surfH  - 1;
+
+    // 行距：游戏节奏 = 字形高 + 2（本作 10）；若 CJK 字号更大则至少占满自身高度
+    int lineAdv = (g_lineH > 0 ? g_lineH + 2 : 10);
+    if (lineAdv < g_pxHeight) lineAdv = g_pxHeight;
+
+    int curX = x + xoff, curY = y + yoff;
+    int lines = 0, totalPx = 0;
     int len  = (int)strlen(text);
 
     for (int i = 0; i < len; )
@@ -304,20 +391,29 @@ static int RenderStringCJK(int x, int y, const unsigned char* colorTable,
         WCHAR wc; int n = DecodeChar(text, i, len, wc);
         if (!wc) { i += n; continue; }
 
-        if (wc == L'\n') { curX = x; y += lineAdv; ++lines; i += n; continue; }
+        if (wc == L'\n') { curX = x + xoff; curY += lineAdv; ++lines; i += n; continue; }
 
         int adv = 0;
         if (wc < 0x20) {                 // 控制字符（原函数也不画）
             adv = GlyphAdvance(wc);
         } else {
-            DrawGlyph(wc, curX, y + g_cfg.vOffset, ink,
-                      pixels, pitch, surfH, clipX, clipY, adv);
+            int topY = curY + g_cfg.vOffset;
+            totalPx += DrawGlyph(wc, curX, topY + g_ascent, ink,
+                                 pixels, pitch, minX, maxX, minY, maxY, adv);
         }
         curX += adv;
         i += n;
     }
 
+    DumpSurfaceOnce(pixels, pitch, surfH);
+
     if (weLocked && g_unlockFn) g_unlockFn();
+
+    if (g_cfg.debug && g_dbgDrawLog < 5) {
+        Log("   -> H=%p px0=%p px=%d pitch=%d surfH=%d clip=(%d,%d) max=(%d,%d) lineAdv=%d\n",
+            H, pixels, totalPx, pitch, surfH, minX, minY, maxX, maxY, lineAdv);
+        ++g_dbgDrawLog;
+    }
     return lines;   // 原函数返回换行计数（单行串为 0）
 }
 
@@ -465,7 +561,7 @@ static int __cdecl HookCharWidth(DWORD fontObj, int ch)
         if (g_cfg.debug && g_dbgCharW < 5)
             Log("charwidth hi ch=%d font=%08X\n", ch, fontObj);
         ++g_dbgCharW;
-        int h = (g_cfg.fontHeight > 0) ? g_cfg.fontHeight : (g_lineH > 0 ? g_lineH : 16);
+        int h = EffectiveHeight();
         return (h + 1) / 2;
     }
     if (!g_charWidth || !fontObj) return 6;
@@ -493,6 +589,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID /*lpRese
     {
         wchar_t dllPath[MAX_PATH] = { 0 };
         GetModuleFileNameW(hModule, dllPath, MAX_PATH);
+        wcscpy_s(g_baseDir, dllPath);
+        wchar_t* pdir = wcsrchr(g_baseDir, L'\\');
+        if (pdir) pdir[1] = L'\0'; else g_baseDir[0] = L'\0';   // 只留目录部分
         wchar_t logPath[MAX_PATH];
         wcscpy_s(logPath, dllPath);
         wchar_t* slash = wcsrchr(logPath, L'\\');
