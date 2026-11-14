@@ -76,27 +76,33 @@
                     │ vsprintf(Format,va) → Source(0x538960)
                     ▼
                  sub_43B2C2(x,y,color_table=&byte_538F40,Str,surface)  @0x43B2C2  ← ★逐字符 blit
-                    │ 遍历 Str：换行(y+=*(WORD*)(dword_53895C+8)+2) / 否则
+                    │ 遍历 Str：换行(y+=*(WORD*)(*(DWORD*)0x53895C+8)+2) / 否则
                     ▼   调 sub_428813() 画单字，x += sub_4287F3()(字宽)
                  sub_428813(surface,x,y,font,ch,color_table)  @0x428813  ← 直接像素写帧缓冲(NOT GDI)
 ```
 
-**关键事实（纠正早期假设，2026-11-14 汇编逐条核对）：**
+**关键事实（2026-11-14 汇编逐条核对 + 崩溃转储验证）：**
 - **游戏内文字不走 GDI，而是直接写进一个软件帧缓冲。** `sub_428813` 的核心：
   ```c
-  H   = *(void**)dword_53895C;            // 全局绘图面 → H 头
-  pix = *(BYTE**)H;                       // H[0] = 像素基址
-  pit = *(int*)(H+4) + 1;                 // H[1] = pitch-1 → pitch
-  clX = surf[1]; clY = surf[2];           // 裁剪原点（绘制时加到 x/y）
-  dst = pix + pit*(clY + gy) + (clX + gx);// 目标像素地址
+  surf = a1;                              // ★绘图面 = sub_43B2C2 第 5 参（blit arg1）
+  H    = *(void**)surf;                   // surf[0] = H 头
+  pix  = *(BYTE**)H;                      // H[0] = 像素基址
+  pit  = *(int*)(H+4) + 1;                // H[1] = pitch-1 → pitch
+  clX  = surf[1]; clY = surf[2];          // 裁剪原点（绘制时加到 x/y）
+  maxX = surf[3]; maxY = surf[4];         // 右下边界
+  dst  = pix + pit*(clY + gy) + (clX + gx);// 目标像素地址
   // 启用 xlat(a7=colorTable)：_AL=src; xlat; if(_AL!=-1) *dst=_AL;   ← 单字节写入！
   ```
   → 帧缓冲确认为 **8 位调色板**表面（每像素 1 字节 = 调色板索引）。
-- **`sub_43B2C2` 的第 5 参 `surface` 在 `sub_428813` 内「未被使用」**；真正绘图面来自全局
-  **`dword_53895C`**（0x53895C），它就是 `sub_428813` 的绘图面参数。故 hook 时绘图面应从该全局读取，
-  无需依赖第 5 参。
-- `dword_53895C` 本身即 `DrawSurface` 结构（非指针）：`[0]`=H 头指针、`[1]`=clipX、`[2]`=clipY、
-  `[3]`=maxX、`[4]`=maxY；`H[0]`=像素基址、`H[1]`=pitch-1、`H[2]`=height-1。
+- **绘图面 = `sub_43B2C2` 的第 5 个参数 `surface`**（即 `sub_428813` 的 arg1）。早期「第 5 参未使用、
+  绘图面取自全局」的结论**有误**，已由崩溃转储 + blit 反汇编纠正。`0x53895C` 不是绘图面。
+- **`dword_53895C`（0x53895C）存的是「当前字体对象」指针**（`sub_43B17F` 置入）：
+  `*(DWORD*)0x53895C + 8` = 行高（换行时 `y += 行高 + 2`）；`+0x10` = 字符偏移表
+  （`0x4287F3` 用它按字符查字形/字宽）。
+- `DrawSurface` 布局：`[0]`=H 头指针、`[1]`=clipX、`[2]`=clipY、`[3]`=maxX、`[4]`=maxY；
+  `H[0]`=像素基址、`H[1]`=pitch-1、`H[2]`=height-1。
+- **`0x4287F3` 字符查表以「有符号」字符为索引**：调用方 `movsx` 后 GBK 汉字字节 0x81~0xFE
+  变负数 → 查表越界 → 崩溃。这是中文首次真机崩溃的根因（详见 §3.3）。
 - `CreateFontA` 只在 `sub_4164DE` 出现 1 次（Arial，给语言 DLL/对话框用）；
   `TextOutA` 只在 `sub_44AF0D`（真实 Win32 对话框 `hDlg`，case 89–92）出现 1 次。
   → **GDI 对游戏内主文字是边缘路径，主文字=位图字体逐像素 blit。**
@@ -150,13 +156,29 @@
 HMODULE hMod = GetModuleHandleA("PG2UK220.EXE");
 // ImageBase = 0x400000；偏移 = VA - 0x400000
 void* pDrawText = (BYTE*)hMod + (0x43B2C2 - 0x400000);   // hook 入口
-DWORD* pSurface  = (DWORD*)((BYTE*)hMod + (0x53895C - 0x400000)); // dword_53895C（DrawSurface 本身）
+// 绘图面：直接用 sub_43B2C2 的第 5 个参数 surface（不要从 0x53895C 取！）
+DWORD fontObj   = *(DWORD*)((BYTE*)hMod + (0x53895C - 0x400000)); // 当前字体对象（+8 行高）
 ```
 ```c
-struct DrawSurface { void* H; int clipX, clipY, maxX, maxY; };   // 位于 0x53895C
+struct DrawSurface { void* H; int clipX, clipY, maxX, maxY; };   // = sub_43B2C2 第 5 参 surface
 struct SurfaceHeader { void* pixels; int pitchMinus1, heightMinus1; }; // *H
 // 像素地址 = H->pixels + (H->pitchMinus1+1)*(clipY+gy) + (clipX+gx)，写 1 字节调色板索引
 ```
+
+### 3.3 首次真机崩溃与修复（2026-11-14，转储实证）
+- **崩溃**：`0xC0000005` 读访问 @ `0x42880B`（在 `sub_4287F3` 内），`ESI=0x1D224D08` 非法。
+  调用栈：`0x42880B ← 0x43B82D（sub_43B7C4 体内）← 0x453052 ← 0x467583 ← … ← user32 对话框`。
+- **根因**：`sub_43B7C4`（测宽）逐字节 `movsx`（有符号）后调 `0x4287F3` 查字宽表；
+  `0x4287F3` 执行 `*(int*)(fontObj + table[ch])`，其中 `table = fontObj+0x10`。
+  GBK 汉字字节 0x81~0xFE 被符号扩展为负数 → 索引落在表之前 → 取到垃圾偏移 →
+  `fontObj + 垃圾` 为非法地址 → 读崩。ASCII 0~127 不触发，故英文从不崩。
+- **修复**（`PG2CHS_DLL/dllmain.cpp`，3 点手动 detour）：
+  1. `0x43B2C2` 绘制（原有）：含 GBK → GDI 取字形写帧缓冲。
+  2. `0x43B7C4` 测宽：含 GBK → 按 GBK 字符累加 `gmCellIncX`，不再逐字节负索引。
+  3. `0x4287F3` 字宽查表兜底：高位字节返回半宽（2 字节 = 全宽），防其它调用点负索引崩。
+  - 同时修正绘图面取址为「第 5 参 surface」，并返回换行计数匹配原函数语义。
+- **经验**：真机日志 `hMod=72750000` 是 ASI 自身模块句柄（正常）；hook 点在 `@0043B2C2` 正确。
+  `0x53895C` 是字体对象指针，**不是**绘图面——这是早期结论的主要坑。
 
 ---
 
@@ -215,7 +237,7 @@ PanzerGeneral2CHS/
 | `Locale`     | 0x4AD758 | 语言全局（9=英/12=法/默认=德） |
 | `dword_4A0FD8` | 0x4A0FD8 | 语言码（0=英/1=法/2=德/3=西，来自 language.ini） |
 | `dword_538958` | 0x538958 | 已加载位图字体句柄 |
-| `dword_53895C` | 0x53895C | **主屏绘图面结构本身**（非指针；`[0]`=H 头→`[0]`=像素基址、`[1]`=pitch-1、`[2]`=height-1；`[1..4]`=clipX/clipY/maxX/maxY） |
+| `dword_53895C` | 0x53895C | **当前字体对象指针**（`+8`=行高、`+0x10`=字符偏移表）；绘图面是 `sub_43B2C2` 第 5 参，**不是**它 |
 | `byte_538F40` | 0x538F40 | 文字颜色 xlat 表（256 项，0xFF=透明） |
 | `dword_515D40` | 0x515D40 | **主绘制 surface 结构**（[0]=像素基址,[1]=xoff,[2]=yoff,[4]=pitch-1） |
 | `Source`     | 0x538960 | vsprintf 输出缓冲（最终文本串） |
