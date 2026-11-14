@@ -1,0 +1,97 @@
+Saturn on the Chir
+Kalmykov
+Chir River
+Tsutskai River
+Kurtlak River
+Zariza River
+Don River
+14/26
+216/26
+157/26
+19/26
+915/346
+1168/346
+1166/346
+1164/346
+119/50G
+152/50G
+150/50G
+148/50G
+99/47G
+142/47G
+140/47G
+137/47G
+33/14G
+41/14G
+597/159
+631/159
+558/159
+491/159
+44/1
+159/1
+117/1
+89/1
+313/112
+294/112
+275/112
+55/55
+87/55
+84/55
+78/55
+23/21
+112/21
+67/21
+17/21
+36/14G
+38/14G
+Dubovsky
+Gorbatovski
+Medvezhii
+Kalmykov
+Perelazovsky
+Zhirkovski
+Kletskaya
+Serafimov
+Ust'-Khoperskaya
+Blinovskiy
+Khuper River
+Medveditsa River
+22
+140/22
+129/22
+204/22
+1R
+3/1R
+4/1R
+1/1R
+5/7RC
+9C/7RC
+12R/7RC
+11R/7RC
+28/5R
+7/5R
+32/5R
+9/5R
+8/5R
+29/14R
+24/14R
+6/14R
+39/14R
+13/14R
+18/9R
+13/9R
+40/9R
+36/9R
+34/9R
+26/11R
+21/11R
+19/11R
+3/11R
+2/11R
+Pronin
+Sovetskaya
+Bolshaya Donschinka
+RA
+RA
+RG
+LAKE

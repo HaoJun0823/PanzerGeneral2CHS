@@ -1,0 +1,97 @@
+Salerno - Return To Europe
+Castellammare
+Sorrento
+Vietri
+Salerno
+Baronissi
+San Severino
+Nocera
+Monteforte
+Avellino
+Acerno
+Battipaglia
+Eboli
+Persano
+Persano
+Altavilla
+Paestum
+Contursi
+1/22/7 [X]
+5/22/7 [X]
+1/22/7 [X]
+5/131/7 [X]
+6/131/7 [X]
+7/131/7 [X]
+C/11H/7 [X]
+3/7 [X]
+5/7 [X]
+146/7 [X]
+128/46 [X]
+138/46 [X]
+139/46 [X]
+70/46 [X]
+71/46 [X]
+128/56 [X]
+138/56 [X]
+139/56 [X]
+64/56
+65/56
+40RTR
+RSG
+5
+Salerno
+Battipaglia
+Eboli
+Tobacco Factory
+Persano
+Paestum
+Altavilla
+Contursi
+Oliveto
+Montecorvino
+Acerno
+Pogani
+Maiori
+Sorrento
+Castellammare
+Pompei
+Nola
+Avellino
+Solofra
+Montemarano
+2/1/HG/HG
+1/HG
+1/HG
+103/3
+8/3
+29/3
+115/15
+129/15
+33/15
+HG
+2/HG
+HG
+Maiori
+Nocera
+Monteforte
+Vietri
+Pompei
+Torre Annunziata
+Tobacco Factory
+Salerno
+Avellino
+7 [X]
+Cava di Terrelli
+Cava di Terrelli
+Torre Annunziata
+L4
+Baronissi
+San Severino
+29
+26
+1/1/HG/HG
+FC
+Solofrone River
+Sele River
+Calore River
+la Cosa River

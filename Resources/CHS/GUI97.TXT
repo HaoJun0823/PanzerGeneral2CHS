@@ -1,0 +1,441 @@
+Austria
+Belgium
+Bulgaria
+Czechoslovakia
+Denmark
+Finland
+France
+Germany
+Greece
+USA
+Hungary
+Turkey
+Italy
+Netherlands
+Norway
+Poland
+Portugal
+Romania
+Spain
+Russia
+Sweden
+Switzerland
+United Kingdom
+Yugoslavia
+Nationalist
+Republican
+Axis
+Allied
+Brilliant Victory
+Victory
+Tactical Victory
+Loss
+Panzer General II
+Next Unit
+Cancel Move
+Mount - Dismount
+Embark - Disembark
+Supply
+Replacements
+Requisition Unit
+Field Headquarters
+Air Mode
+Strategic Map
+Game Functions
+Additional Options
+Chat
+How To Play The Game
+End Turn
+Dossier
+Show Hexsides
+Audio Settings
+Play By EMail
+VCR
+Replay Turn
+Full Screen
+Show Terrain
+Exit Game
+Inspect Unit
+Go To Unit
+Overstrength Unit
+Upgrade Unit
+Reassign Unit
+Undo Last Action
+Panzer General II
+Soft Target
+Hard Target
+Air Unit
+Naval Unit
+Fuel
+Ammo
+Range
+Initiative
+Spotting Range
+Sea Movement
+Wheeled Movement
+All Terrain Movement
+Air Movement
+Half Track Movement
+Towed Movement
+Tracked Movement
+Leg Movement
+Hard Attack
+Soft Attack
+Air Attack
+Naval Attack
+Ground Defense
+Air Defense
+Close Defense
+Ranged Defense Modifier
+Select Air Defense
+Select Air Defense
+Select Anti-tank
+Select Artillery
+Select Infantry
+Select Recon
+Select Tank
+Select Fighter
+Panzer General II
+Select Tactical Bomber
+Core
+Auxiliary
+Requisition Unit
+Scroll Up
+Scroll Down
+Exit
+Cancel
+Total Prestige
+Available Prestige
+Expended Prestige
+Exit Deployment
+Edit Equipment
+Panzer General II
+Load Campaign Script
+Save New Campaign
+Load Scenario
+Save Scenario
+Edit Map
+Edit Army
+Place Army
+Clear All Victory Hexes
+Clear All Scenario Hex Info
+Change Terrain Type
+Save Map
+Load Map
+Load Map
+Identify Map
+Toggle Road Mode
+Fill Map
+Clear Roads
+Exit Edit Map
+Next Army
+Toggle Entrench Mode
+Enter Scenario Description
+Class None
+Infantry
+Tank
+Recon
+Anti-tank
+Panzer General II
+Fortification
+Ground Transport
+Artillery
+Air Defense
+Fighter
+Tactical Bomber
+Panzer General II
+Air Transport
+Submarine
+Destroyer
+Battleship
+Carrier
+Naval Transport
+Battle Cruiser
+Cruiser
+Light Cruiser
+Play A Campaign
+Play A Scenario
+Start A Multiplayer Scenario
+Show The Credits
+Start The Scenario Builder
+Load A Saved Game
+Review A Dossier
+Show The Introduction
+Exit The Game
+Dry
+Frozen
+Turn
+January
+February
+March
+April
+May
+June
+July
+August
+September
+October
+November
+December
+Fair
+Overcast
+Rain
+Snow
+Turns
+Panzer General II
+Current Strength
+Experience Level
+Leader
+Unit Has Transport
+Unit Has Moved
+Congratulations on your Victory
+Panzer General II
+Next Country
+Total Cost Of Unit
+Cost of Equipment
+Available
+Casualties Inflicted
+Casualties Taken
+Entrenchment
+Assaulting
+Attacking
+Panzer General II
+Interceptors!
+Air Defense
+Close Support Fire
+Support Fire
+Attack Broken Off!
+Surrender
+Fleeing Port
+Scuttling
+Submarine Dives
+Submarine Evades
+Rugged Defense!
+Suppressed
+Destroyed
+LAN Connection
+Internet Connection
+Club SSI
+Internet List
+Create Game
+Join Game
+Enter Your Player Name
+Enter The Game Name
+Show Scenario Save Games
+Show Campaign Save Games
+Show Multiplayer Save Games
+Show Email Games
+Save Game
+Load Game
+Up One Level
+Create Directory
+New Game
+Successfully Saved
+WAS NOT SAVED-ERROR
+No File Description
+Deploy Forces
+Name Scenario
+Starting Date
+Number Of Turns
+Turns Per Day
+Ground Conditions
+Atmospheric Conditions
+Scenario Description
+Designate Supply
+Designate Victory
+Designate Ownership
+Designate Deployment
+Build Army
+Unit Settings
+Deploy Army
+Set Prestige
+Scenario Parameters
+Prestige Allocated Per Turn
+Unit Names
+Make Global Settings
+Panzer General II
+Enter An IP Address
+Are You Sure You Want to Quit?
+Empty Slot
+Yes
+No
+Tenacious Defense
+Aggressive Maneuver
+Elite Recon Veteran
+Tank Killer
+Marksman
+Mechanized Veteran
+Skilled Interceptor
+Skilled Assault
+Aggressive Attack
+Determined Defense
+Battlefield Intelligence
+First Strike
+Resilience
+Influence
+Fire Discipline
+Liberator
+Alpine Training
+All Weather Combat
+Forest Camouflage
+Combat Support
+Infiltration Tactics
+Aggressive Maneuver
+Skilled Reconnaissance
+Reconnaissance Movement
+Skilled Ground Attack
+Street Fighter
+Overwhelming Attack
+Superior Maneuver
+Extended Front
+Ferocious Defender
+Overwatch
+Devastating Fire
+Bridging
+Shock Tactics
+Side 1 Turn
+Side 2 Turn
+Weather
+Fair
+Overcast
+Rain
+Snow
+Review Best Careers
+Enter Password
+You have Been Awarded A Prototype Unit
+Review Battlefield
+Overrun Attack!
+Lost Connection With Player
+Lost Session
+Reassign Unit
+Hard Target
+Soft Target
+Increase Prestige Percentage
+Decrease Prestige Percentage
+Player Prestige Modifier
+Computer Player
+Human Player
+Increase Player Prestige Percentage
+Decrease Player Prestige Percentage
+Player Prestige Setting
+Next
+Choose Connection
+Number Of Players In Game
+Create Or Join Game
+Choose Game To Join
+Set Scenario Time Limit
+Set Time Limit
+Set Time Limit
+Enter Scenario Name
+Set Starting Scenario Month
+Set Starting Scenario Day
+Set Starting Scenario Year
+Set Month
+Set Month
+Set Day
+Set Day
+Set Year
+Set Year
+Number Of Turns In Scenario
+Set Turns
+Set Turns
+Set Turns Per Day
+Set Turns Per Day
+Set Number Of Players
+Set As Side 1
+Set As Side 2
+Set Primary Country
+Set Country
+Set AI Aggressive
+Set AI Defensive
+No Map Chosen For Scenario
+Must Name Scenario
+Colonel
+General
+Field Marshal
+New Equipment Available
+PANZER GENERAL II HOT KEYS
+FILE FUNCTIONS
+CTRL-S, Save
+CTRL-L, Load
+CTRL-Q, Quit Panzer General II
+CTRL-A, Autosave
+ESC, Exit current menu or screen
+(If on Start Screen, exits game)
+MENU FUNCTIONS
+N - Next Unit
+X - Cancel Move
+R - Requisition
+D - Deploy
+F - Field HQ
+I - Inspect Unit
+V - View Unit
+A - Air Mode
+S - Strategic Map
+G - Dossier
+C - Chat
+T - Toggle pop-up screen text
+O - Omit selected unit from the
+Next unit cycle for that turn
+P - Previous Unit
+SHIFT-F, Toggle full sceen
+SHIFT-R, Replay Turn
+Space - Center on currently selected unit
+Arrow Keys - Scroll Map
+ADDITIONAL OPTIONS
+1 - Status Report
+2 - Hot Key List
+3 - Sound Effects Toggle
+4 - Music Toggle
+5 - 
+6 - View Terrain
+7 - Hexes Toggle
+8 - Toggle Unit Strength Boxes
+VIEW UNIT FUNCTIONS
+ALT-M, Mount - Dismount
+ALT-E, Embark - Disembark
+ALT-S, Supply
+ALT-R, Replacements
+List Of Hot Keys
+Status Report
+Reinforcements have arrived
+Do You Want Air Transport?
+Replay Email Opponent's Turn
+Play
+Stop
+Fast Forward
+Rewind
+Are you sure you wish to remove this unit?
+Rename Unit
+Battle Honors
+Air Transport Available:
+Sea Transport Available:
+Enter a Game Description
+Surprised!
+Out of the sun!
+Surprise Contact!
+Done
+Music On-Off
+Sound Effects On-Off
+in
+Incorrect Password
+Global Prestige
+Quit
+SHIFT-E, End Turn
+Load Scenario
+AUTOSAVE SCENARIO
+AUTOSAVE CAMPAIGN
+Change Commands
+Requisition
+Field Headquarters
+Dossier
+Upgrade
+Build Army
+Inspect Unit
+Done
+Last Turn
+Enter Scenario Name
+Failed To Open Session
+1.02
+Scenario Builder
+

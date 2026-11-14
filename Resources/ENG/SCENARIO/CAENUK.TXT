@@ -1,0 +1,149 @@
+Caen - Operation Goodwood
+Orne River
+4/2C
+5/2C
+6/2C
+8/3
+9/3
+185/3
+1/27/3
+2/27/3
+7/3C
+8/3C
+9/3C
+1/2/3C
+2/2/3C
+3/6
+5/6
+1/22/7
+2/22/7
+131/7
+3/7
+5/7
+8KRH/7
+44/15
+46/15
+129/43
+130/43
+153/51
+154/51
+1/1/1SS
+2/1/1SS
+13/1/1SS
+2/1SS
+3/1SS
+1SS
+1SS
+1/9/9
+2/9/9
+9
+19/9
+20/9
+9
+1/10/10
+2/10/10
+21/10
+22/10
+10
+10
+1/12/12SS
+2/12/12SS
+25/12SS
+12SS
+12SS
+32/16L
+31/16L
+46/16L
+16L
+2/22/21
+125/21
+192/21
+21
+200/21
+220/21
+155/21
+305/21
+980/272
+981/272
+982/272
+272
+857/346
+858/346
+346
+731/711
+744/711
+711
+101SS
+503
+[3FK]
+56/50
+151/50
+231/50
+69/50
+50
+146/49
+147/49
+70/49
+49
+901/PL
+902/PL
+130/PL
+130/PL
+276
+277
+276
+277
+5/22/7
+276
+276
+Franceville Plage
+Cabourg
+Troarn
+Bourgue'lous
+Cormelles
+Caen
+Esquay
+Avenay
+Bully
+Amay sur Orne
+Brettville sur Laize
+Aunay sur Oden
+Villers Bocage
+Ouistreham
+Lion sur Mer
+Luc sur Mer
+Basly
+Courseulles sur Mer
+St Manvieu
+Brettville l'Orgueilleuse
+Arromanches les Bains
+Port en Bessin
+Colleville sur Mer
+St Laurent sur Mer
+Caumont
+Balleroy
+Tilly sur Seulles
+Carpiquet
+Bayeux
+Thury Harcourt
+Thury Harcourt
+15
+51
+2C
+3
+3C
+43
+BC
+BC
+BC
+Caen
+Caen
+Caen
+Orne River
+Vimont
+L1
+Aure River
+Drome River
+Seulles River
+Odon River
+Dives River

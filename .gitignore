@@ -1,0 +1,65 @@
+# ============================================================
+# PanzerGeneral2CHS — 仓库忽略规则
+# 原则：只忽略「会产生构建产物的地方」，源材料与翻译必入库。
+# ============================================================
+
+# ---- 版本控制 / IDE ----
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vsidx
+*.ipch
+*.VC.db
+*.sdf
+*.opensdf
+
+# ---- 构建产物：DLL / 中间物（PG2CHS_DLL 工程，VS 默认输出）----
+#   vcxproj 用 v141，Platform=Win32|x64，OutputDirectory 默认落在工程目录下。
+PG2CHS_DLL/**/Release/
+PG2CHS_DLL/**/Debug/
+PG2CHS_DLL/**/Win32/
+PG2CHS_DLL/**/x64/
+PG2CHS_DLL/**/x86/
+PG2CHS_DLL/**/obj/
+PG2CHS_DLL/**/ipch/
+PG2CHS_DLL/**/*.dll
+PG2CHS_DLL/**/*.asi
+PG2CHS_DLL/**/*.pdb
+PG2CHS_DLL/**/*.ilk
+PG2CHS_DLL/**/*.exp
+PG2CHS_DLL/**/*.lib
+PG2CHS_DLL/**/*.log
+
+# ---- 发布构建产物（build_release.py / CI 生成，不入库）----
+build_out/
+release/
+
+# ---- 字体源文件（大 TTF，由使用者自行放置；不入库避免仓库膨胀）----
+#   若决定随包分发某已授权字体，按需在 Fonts/ 反向放行。
+Fonts/*.ttf
+Fonts/*.otf
+Fonts/*.ttc
+
+# ---- NuGet 还原产物（packages.config 驱动，clone 后 restore 自动回来）----
+**/packages/
+*.nupkg
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ---- 工作区记忆（个人笔记，不分发）----
+.workbuddy/
+
+# ---- CI 发布说明的中间产物（workflow 生成，仅供本 run 内使用）----
+/release_notes.md
+/commits.md
+
+# ---- 反向放行：必须入库的输入资产 ----
+#   dist/common/winmm.dll 是 Ultimate ASI Loader（MIT），构建输入，必入库。
+!dist/common/winmm.dll

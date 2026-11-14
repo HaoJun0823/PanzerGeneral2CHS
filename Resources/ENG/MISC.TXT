@@ -1,0 +1,28 @@
+CLEAR
+CITY
+AIRFIELD
+FOREST
+BOCAGE
+HILL
+MOUNTAIN
+SAND
+SWAMP
+OCEAN
+RIVER
+FORTIFICATION
+PORT
+STREAM
+ESCARPMENT
+IMPASSABLE RIVER
+ROUGH
+Close Assault
+Assault
+Experience:
+Ammo:
+Fuel:
+Expected Losses:
+Attk:
+Dfnd:
+Ent:
+Remove this Line:
+

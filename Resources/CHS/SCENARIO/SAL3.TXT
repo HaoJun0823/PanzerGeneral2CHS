@@ -1,0 +1,140 @@
+Avalanche
+Castellammare
+Sorrento
+Vietri
+Salerno
+Baronissi
+San Severino
+Nocera
+Monteforte
+Avellino
+Acerno
+Battipaglia
+Eboli
+Persano
+Persano
+Altavilla
+Paestum
+Contursi
+Baronissi
+San Severino
+Sorrento
+Pompei
+Nola
+Avellino
+Solofra
+Montemarano
+Monteforte
+141/36
+142/36
+RF
+128/46
+167/56
+169/56
+41 Cdo
+Eboli
+Persano
+Altavilla
+Contursi
+Oliveto
+Montecorvino
+Battipaglia
+Tobacco Factory
+Paestum
+Acerno
+Tobacco Factory
+Vietri
+Nocera
+Pogani
+Maiori
+Torre Annunziata
+Castellammare
+Beachhead Yellow/Green
+Beachhead Roger Amber
+2/79/16
+2/64/16
+Recon/16
+2/16
+3/16
+1/16
+215
+2/16
+16
+1/HG/HG
+HG
+1/HG
+HG
+HG
+1/1/HG
+4/1/HG
+9/26
+67/26
+23/26
+26
+202/26
+26
+26
+15/29
+71/29
+129/29
+29
+29
+8/3
+29/3
+103/3
+3
+115/15
+129/15
+15
+93
+71
+2/53
+Maiori
+143/36
+111/36
+36
+157/45
+179/45
+180/45
+120/45
+45
+504/82
+505/82
+509/82
+325/82
+82
+540
+191
+751
+131/7
+1RTR/22/7
+5RTR/22/7
+4CLY/22/7
+1RB/22/7
+22/7
+138/46
+139/46
+46
+201G/56
+142
+40RTR
+RSG
+Beachhead Red
+Beachhead Roger Green
+Beachhead Uncle Green
+Pompei
+Avellino
+Salerno
+Cava di Terrelli
+Cava di Terrelli
+Torre Annunziata
+Boise
+Brooklyn
+Philadelphia
+Savannah
+Edison
+Ludlow
+Sele River
+Calore River
+la Cosa River
+Solofrone River

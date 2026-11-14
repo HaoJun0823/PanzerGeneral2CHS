@@ -1,0 +1,82 @@
+Prokhorovka
+Belograd
+Melekhovo
+Rzhavets
+Bol'shaya Podyarugi
+Yasnaya Polyana
+Yakoulevo
+Novoselovka
+Donets River
+Razum naya River
+Severskii Donets River
+Vorskla River
+Psoyl River
+Novoselovka
+Yakoulevo
+Airfield
+Melekhovo
+Rzhavets
+Bol'shaya Podyarugi
+Yasnaya Polyana
+391/170
+717/170
+422/170
+249/16L
+167/16L
+156/16L
+12G/56
+11G/56
+10G/56
+24G/56
+53/29
+32/29
+31/29
+25/29
+32/18
+181/18
+170/18
+110/18
+4/2G
+26/2G
+25/2G
+4/2G
+6/5G
+22/5G
+21/5G
+20/5G
+228
+503
+74/19
+73/19
+27/19
+7/7
+6/7
+25/7
+132
+TE/3SS
+T/3SS
+2/3SS
+DF/2SS
+D/2SS
+2/2SS
+2/1SS
+1/1SS
+1/1SS
+52/10B
+51/10B
+122
+911
+39
+111/11
+110/11
+15/11
+Prokhorovka
+Prokhorovka
+L4
+L4
+L4
+Belograd
+SA
+SA
+SA
+SA
