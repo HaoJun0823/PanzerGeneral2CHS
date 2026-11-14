@@ -51,6 +51,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 
 // ===================== 配置（可用同目录 PG2CHS.ini 覆盖） =====================
 static struct Cfg {
@@ -65,18 +66,14 @@ static struct Cfg {
     bool  selfTest         = false;// 首次绘制时在画面上画一段中文测试换行渲染（排查用）
     bool  repairFragments  = true; // 还原被游戏按字节切碎的关卡标题（见下方「碎片还原」）
     bool  translateExtra   = true; // 显示层替换：城市/河流/装备/姓氏等英文词条 → 中文
-    // 游戏脏矩形按「自带位图字形高」(fontObj+8，本作 8px) 刷新文字背景。
-    // 12px 汉字多出来的 4px 永远落在刷新区外 → 上一行/上一次文字的最底下
-    // 一截擦不掉，反复重绘就残留叠字。解法不是去刷背景（会把简报底纹刷成
-    // 单色灰块），而是把字形垂直压进那 8px：横向 12px 点阵信息全保留，
-    // 纵向相邻行合并（同色 OR），笔画不丢，只是略扁。
-    bool  fitGlyphHeight   = true; // 1 = 压进游戏刷新高度（简报多行路径用）
-    int   glyphHeight      = 0;    // 压缩目标高度(px)；0 = 自动取游戏字形高
-    // 更好的解法（默认）：不再委屈字形，改由 DLL 自己擦旧字。
-    // 每写一个笔画像素就记下原色，下次同一串字重画前逐点恢复，
-    // 底纹/边框一像素不动；普通文本因此可用完整 12x12 方字。
-    bool  inkUndo          = true; // 1 = 墨迹自撤销（自己擦上一次写的字）
-    bool  fullHeightText   = true; // 1 = 普通文本恢复完整字高（依赖 inkUndo）
+    // 游戏脏矩形按「自带位图字形高」(fontObj+8，本作 8px) 刷新文字背景，
+    // 12px 汉字下面 4px 永远在刷新区外 → 上一次文字的下半截擦不掉。
+    bool  fitGlyphHeight   = true; // 1 = 简报多行路径压进游戏行距（默认 10px）
+    int   glyphHeight      = 0;    // 简报压高目标(px)；0 = 自动取行距(10)
+    // 条件背景擦除：全屏记录我们写过的笔画点，每次画字前把该串矩形内
+    // 仍呈文字色的标记点填成背景众数，只动自己写过的像素，底纹零破坏。
+    bool  inkUndo          = true; // 1 = 启用条件背景擦除（沿用旧 ini 键名）
+    bool  fullHeightText   = true; // 1 = 普通文本恢复完整 12x12 方字（依赖 inkUndo）
 } g_cfg;
 
 // ===================== 关键地址（VA，ImageBase = 0x400000） =================
@@ -387,17 +384,19 @@ static int EffectiveDrawHeight()
 {
     int src = g_pxHeight > 0 ? g_pxHeight : 12;
     if (!g_cfg.fitGlyphHeight) return src;
+    // 简报行距固定 10px（g_lineH+2），字形取 10 正好不越界也不压下一行；
+    // 从上一版的 8px 提到 10px，汉字明显更方整，同时不增加行数。
     int dst = g_cfg.glyphHeight > 0 ? g_cfg.glyphHeight
-                                    : (g_lineH > 0 ? g_lineH : 8);
+                                    : (g_lineH > 0 ? g_lineH + 2 : 10);
     if (dst < 6)  dst = 6;
     if (dst > src) dst = src;
     return dst;
 }
 
-// 普通文本（按钮 / 状态栏 / 菜单，含描边层）：墨迹自撤销已接管擦除，
+// 普通文本（按钮 / 状态栏 / 菜单，含描边层）：条件背景擦除已接管旧字清理，
 // 不再受游戏 8px 脏矩形约束，恢复到完整字号，汉字重新方正好读。
-// 简报用 WrapDrawCJK，行距只有 10px，仍走 EffectiveDrawHeight() 压高，
-// 否则 12px 字会压到下一行。
+// 简报用 WrapDrawCJK，行距只有 10px，仍走 EffectiveDrawHeight()（10px），
+// 否则 12px 字会压到下一行 / 撑爆 maxH 分页。
 static int EffectiveTextDrawHeight()
 {
     if (g_cfg.fullHeightText && g_cfg.inkUndo)
@@ -445,7 +444,7 @@ static bool EnsureFont()
             g_hfont = f; g_fontOk = true;
             g_ascent = tm.tmAscent > 0 ? tm.tmAscent : (g_pxHeight * 4 / 5);
             Log("font: %ls  %dpx  ascent=%d  游戏字形高=%d  简报绘制高=%d  "
-                "普通文本绘制高=%d  墨迹撤销=%d  模式=%s\n",
+                "普通文本绘制高=%d  条件擦除=%d  模式=%s\n",
                 name, g_pxHeight, g_ascent, g_lineH, EffectiveDrawHeight(),
                 EffectiveTextDrawHeight(), g_cfg.inkUndo ? 1 : 0,
                 g_cfg.antiAlias ? "gray8" : "1bpp");
@@ -1062,77 +1061,128 @@ static DWORD FetchGlyph(WCHAR wc, std::vector<BYTE>& buf, GLYPHMETRICS& gm)
     return size;
 }
 
-// ===================== 墨迹自撤销 (Ink Undo) =====================
+// ===================== 条件背景擦除 (Backplate) =====================
 // IDA: sub_43B2C2 逐字调 sub_428813 透明叠加，本身不擦背景；游戏按
-// *(fontObj+8)=8px 的脏矩形刷新文字区。12px 汉字下面 4px 在矩形外，
+// *(fontObj+8)=8px 的脏矩形刷新文字区。12px 汉字下面 4px 落在矩形外，
 // 上一串字的下半截擦不掉，反复重绘就糊成一团。
 //
-// 直接改 fontObj+8 不可行：sub_428813 还把它当字形位图的行数，改成 12
-// 会让原版英文位图读越界；按像素众数刷整块背景又会把简报底纹刷成灰块。
+// 上一版「墨迹自撤销」按 (表面,x,y,墨色) 分块、逐点写回原色，真机无效：
+//   * 游戏把同一串字画两遍做描边（ink=00/0F 暗层 + ink=13/E3 亮层），
+//     两层互相覆盖后，亮层旧笔画在下一帧已变成暗色，
+//     `*q == d.ink` 判定失效，永远擦不掉；
+//   * `d.old` 常是另一层的墨色，恢复回去等于把旧字又写一遍；
+//   * 实机日志 75 个绘制块里有 23 个只画过一次，从没有机会被撤销。
 //
-// 所以由我们自己擦：每写一个笔画像素，记下 (x,y,原色,墨色)；下次同一串
-// 文字重画前把这些点逐个写回原色，再画新字。只碰自己写过的像素 →
-// 底纹、边框、图标、其它文字全部保留，字形也能恢复完整 12x12。
-//
-// 分组键 = (表面, x, y, 墨色)：游戏把同一串字画两遍做描边
-//   D#2421 (302,458) ink=0F 暗色  +  D#2422 (301,457) ink=E3 亮色
-// 坐标与墨色都不同，两层各自撤销，互不干扰。
-struct InkDot { int x, y; BYTE old, ink; };
-struct InkBlock {
-    void* surf; int x, y; BYTE ink; int pitch, surfH; DWORD stamp;
-    std::vector<InkDot> dots;
-};
-static std::vector<InkBlock> g_inkBlocks;
-static InkBlock* g_curInk = nullptr;
-static DWORD g_inkStamp = 0;
-static DWORD g_inkRevoked = 0;
+// 现改为不依赖「块身份」：全屏位图标记哪些像素是我们写过的笔画，
+// 每次绘制一串文字前，把该串紧凑矩形内「仍呈文字色」的标记点填成
+// 矩形像素众数（背景色），清标记，再画新字。
+//   * 只动我们写过的点 → 底纹 / 边框 / 图标零破坏，不会重演灰块；
+//   * 不比较本块墨色 → 双层描边、坐标漂移、只画一次的块都能擦掉；
+//   * 描边两层靠「同串配对」识别，只在第一层擦一次，避免抹掉刚画好的
+//     暗色描边。
+struct LastLayer { void* surf; int x, y; DWORD hash, ms; };
+static LastLayer g_lastLayer = {};
+static BYTE*  g_inkMark = nullptr;
+static int    g_inkW = 0, g_inkH = 0;
+static BYTE   g_isInk[256];
+static DWORD  g_backplatePx = 0;
+static bool   g_inkPaletteReady = false;
 
-static InkBlock* InkBegin(void* surface, int x, int y, BYTE ink,
-                          BYTE* pixels, int pitch, int surfH)
+static void InitInkPalette()
 {
-    if (!g_cfg.inkUndo || !pixels || pitch <= 0 || surfH <= 0) return nullptr;
-    ++g_inkStamp;
-    InkBlock* b = nullptr;
-    for (auto& it : g_inkBlocks)
-        if (it.surf == surface && it.x == x && it.y == y && it.ink == ink) { b = &it; break; }
-    if (!b) {
-        if (g_inkBlocks.size() >= 512) {          // 丢弃最久未用的一块
-            size_t oldest = 0;
-            for (size_t i = 1; i < g_inkBlocks.size(); ++i)
-                if (g_inkBlocks[i].stamp < g_inkBlocks[oldest].stamp) oldest = i;
-            g_inkBlocks.erase(g_inkBlocks.begin() + oldest);
-        }
-        g_inkBlocks.push_back(InkBlock());
-        b = &g_inkBlocks.back();
-        b->surf = surface; b->x = x; b->y = y; b->ink = ink;
-    }
-    b->stamp = g_inkStamp;
+    if (g_inkPaletteReady) return;
+    g_inkPaletteReady = true;
+    // 实机日志里出现过的文字色；其余墨色在绘制时动态登记。
+    const BYTE seed[] = { 0x00, 0x0F, 0x13, 0x6D, 0xE3 };
+    for (BYTE c : seed) g_isInk[c] = 1;
+}
+static void RegisterInk(BYTE c) { InitInkPalette(); g_isInk[c] = 1; }
 
-    // 表面尺寸变了就别乱写（Lock 后基址可能换），直接丢弃旧记录。
-    if (b->pitch == pitch && b->surfH == surfH) {
-        for (const auto& d : b->dots) {
-            if (d.y < 0 || d.y >= surfH || d.x < 0 || d.x >= pitch) continue;
-            BYTE* q = pixels + (size_t)d.y * pitch + d.x;
-            // 只有「仍是我们写下的那个墨色」才恢复：游戏后来在此画了
-            // 别的东西时值已变，跳过就不会破坏新内容。
-            if (*q == d.ink) *q = d.old;
-        }
-        g_inkRevoked += (DWORD)b->dots.size();
-    }
-    b->dots.clear();
-    b->dots.reserve(256);
-    b->pitch = pitch; b->surfH = surfH;
-    return b;
+static void EnsureInkMap(int w, int h)
+{
+    if (!g_cfg.inkUndo || w <= 0 || h <= 0) return;
+    if (g_inkMark && g_inkW == w && g_inkH == h) return;
+    free(g_inkMark);
+    g_inkMark = (BYTE*)calloc((size_t)w * h, 1);
+    g_inkW = w; g_inkH = h;
 }
 
-// 作用域守卫：RenderStringCJK 有早退路径，靠析构保证 g_curInk 一定清空，
-// 否则简报的 WrapDrawCJK 会误把笔画记到上一块里。
-struct InkScope {
-    InkScope(void* s, int x, int y, BYTE ink, BYTE* px, int pitch, int h) {
-        g_curInk = InkBegin(s, x, y, ink, px, pitch, h);
+static DWORD NowMs()
+{
+    static LARGE_INTEGER freq = { 0 };
+    if (freq.QuadPart == 0) QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER c;
+    QueryPerformanceCounter(&c);
+    if (freq.QuadPart <= 0) return GetTickCount();
+    return (DWORD)(c.QuadPart * 1000 / freq.QuadPart);
+}
+
+static DWORD HashText(const char* t)
+{
+    DWORD h = 2166136261u;
+    for (const unsigned char* q = (const unsigned char*)t; *q; ++q) {
+        h ^= *q;
+        h *= 16777619u;
     }
-    ~InkScope() { g_curInk = nullptr; }
-};
+    return h;
+}
+
+// 描边两次调用间隔通常 <0.1ms，跨帧 >=16ms；4ms 阈值稳妥区分。
+static bool IsSecondLayer(void* surf, int x, int y, const char* text)
+{
+    DWORD now = NowMs(), h = HashText(text);
+    int dx = x - g_lastLayer.x; if (dx < 0) dx = -dx;
+    int dy = y - g_lastLayer.y; if (dy < 0) dy = -dy;
+    bool second = g_lastLayer.surf == surf && dx <= 2 && dy <= 2
+               && h == g_lastLayer.hash
+               && (now - g_lastLayer.ms) < 4;
+    g_lastLayer.surf = surf; g_lastLayer.x = x; g_lastLayer.y = y;
+    g_lastLayer.hash = h;     g_lastLayer.ms = now;
+    return second;
+}
+
+// 擦掉矩形内我们写过、且当前仍呈文字色的像素。背景色取矩形内「非文字色」
+// 像素的众数（背景在文字矩形里天然占多数）；若整块都是文字色则退到全局众数。
+static int ClearTextBackplate(BYTE* pixels, int pitch, int surfH,
+                              int x0, int y0, int x1, int y1)
+{
+    if (!g_cfg.inkUndo || !pixels || !g_inkMark) return 0;
+    InitInkPalette();
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 >= pitch)  x1 = pitch  - 1;
+    if (y1 >= surfH)  y1 = surfH - 1;
+    if (x1 <= x0 || y1 <= y0) return 0;
+    // clip 异常时会得到整屏矩形，直接跳过，避免把满屏文字误刷成单色。
+    if ((long long)(x1 - x0 + 1) * (y1 - y0 + 1) >
+        (long long)pitch * surfH / 2) return 0;
+
+    int hist[256] = { 0 };
+    for (int yy = y0; yy <= y1; ++yy) {
+        const BYTE* row = pixels + (size_t)yy * pitch;
+        for (int xx = x0; xx <= x1; ++xx) ++hist[row[xx]];
+    }
+    int bg = -1, best = 0, bgAny = -1, bestAny = 0;
+    for (int c = 0; c < 256; ++c) {
+        if (hist[c] > bestAny) { bestAny = hist[c]; bgAny = c; }
+        if (!g_isInk[c] && hist[c] > best) { best = hist[c]; bg = c; }
+    }
+    if (bg < 0) bg = bgAny;
+    if (bg < 0) return 0;
+
+    int n = 0;
+    for (int yy = y0; yy <= y1; ++yy) {
+        BYTE* row = pixels + (size_t)yy * pitch;
+        BYTE* mk  = g_inkMark + (size_t)yy * g_inkW;
+        for (int xx = x0; xx <= x1; ++xx) {
+            if (!mk[xx]) continue;
+            mk[xx] = 0;
+            if (g_isInk[row[xx]]) { row[xx] = (BYTE)bg; ++n; }
+        }
+    }
+    g_backplatePx += n;
+    return n;
+}
 
 // 画一个字形。ink = 当前文字色（colorTable[0]）。
 // 坐标：penX/curY 已含 clipX/clipY；baselineY = topY + 字体 ascent。
@@ -1202,10 +1252,9 @@ static int DrawGlyph(WCHAR wc, int penX, int topY, int baselineY, int outH, BYTE
             int sx = left + c;
             if (sx < minX || sx > maxX) continue;
             BYTE* dst = &dstRow[sx];
-            if (g_curInk) {
-                InkDot d; d.x = sx; d.y = sy; d.old = *dst; d.ink = ink;
-                g_curInk->dots.push_back(d);
-            }
+            if (g_inkMark && g_inkW == pitch &&
+                sy >= 0 && sy < g_inkH && sx >= 0 && sx < g_inkW)
+                g_inkMark[(size_t)sy * g_inkW + sx] = 1;
             *dst = ink;
             ++written;
         }
@@ -1280,22 +1329,37 @@ static int RenderStringCJK(int x, int y, const unsigned char* colorTable,
         clipFixed = true;
     }
 
-    // 墨迹自撤销：先把上一次这一串字写下的笔画逐点恢复，再画新字。
-    // 放到所有早退路径之后，用守卫保证异常返回也能清空 g_curInk。
-    InkScope inkScope(surface, x, y, ink, pixels, pitch, surfH);
+    // 条件背景擦除：先把上一次这串字写在游戏 8px 刷新区之外的笔画擦掉。
+    int len  = (int)strlen(text);
+    while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t')) --len;
+    RegisterInk(ink);
+    EnsureInkMap(pitch, surfH);
 
-    // 普通文本用完整 12px 方字；墨迹撤销负责擦掉超出游戏 8px 脏矩形的部分。
+    // 普通文本用完整 12px 方字；擦除负责清掉超出游戏 8px 脏矩形的部分。
     // 行距随之放宽到 drawH+1，避免串内 \n 换行时上下两行叠在一起。
     int drawH   = EffectiveTextDrawHeight();
     int lineAdv = (g_lineH > 0 ? g_lineH + 2 : 10);
     if (lineAdv < drawH + 1) lineAdv = drawH + 1;
 
+    if (!IsSecondLayer(surface, x, y, text)) {
+        int baseX = x + xoff, baseY = y + yoff;
+        int estW = 0, nl = 0;
+        for (int k = ChooseGBKStart(text, len); k < len; ) {
+            WCHAR wc; int n = DecodeChar(text, k, len, wc);
+            if (!n) break;
+            if (wc == L'\n') { ++nl; estW = 0; }
+            else if (wc != L'\r' && wc >= 0x20) estW += GlyphAdvance(wc);
+            k += n;
+        }
+        // 向下多覆盖 8px：旧字比新字高/长、以及描边层的 1px 偏移都吃进来。
+        int rectH = (nl + 1) * lineAdv + drawH + 8;
+        ClearTextBackplate(pixels, pitch, surfH,
+                           baseX - 2, baseY - 2,
+                           baseX + estW + 32, baseY + rectH);
+    }
+
     int curX = x + xoff, curY = y + yoff;
     int lines = 0, totalPx = 0;
-    int len  = (int)strlen(text);
-    // 译文文件为对齐原始字节偏移，行尾补了半角空格；排版时不计入，
-    // 否则居中/右对齐会整体偏左（文件里的字节保持不变）。
-    while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t')) --len;
 
     // 起点可能落在 GBK 双字节中间（游戏按字节截断时），先自同步再画
     for (int i = ChooseGBKStart(text, len); i < len; )
@@ -1404,16 +1468,16 @@ static short WrapDrawCJK(short startLine, const unsigned char* colorTable,
     int maxH = ds->maxY - ds->clipY + 1;
     if (maxW <= 0 || maxH <= 0) { if (weLocked && g_unlockFn) g_unlockFn(); return 0; }
 
-    g_curInk = nullptr;   // 简报是多行排版，行距仅 10px，不走墨迹撤销路径
-    int drawH  = EffectiveDrawHeight();
+    // 简报每次都是整页全量重绘：开头一次性擦掉上一页留在刷新区外的笔画。
+    // 只动我们写过的点，不会像早期「整块刷单色」那样把底纹抹成灰块。
+    RegisterInk(ink);
+    EnsureInkMap(pitch, surfH);
+    g_lastLayer.surf = nullptr;   // 重置描边配对，强制本页执行擦除
+    ClearTextBackplate(pixels, pitch, surfH, minX, minY, maxX, maxY);
+    int drawH  = EffectiveDrawHeight();   // 默认 10px，行距 10px 下的最方整高度
     int glyphH = drawH;
     int lineH  = (g_lineH > 0 ? g_lineH : 8) + 2;
     if (lineH < glyphH) lineH = glyphH;
-
-    // 【已撤销】此前在这里按「像素众数」把文本矩形刷成单色，
-    // 结果把简报底纹整块刷成灰块（真机帧图 x≈24..350 全为索引 69）。
-    // 底部残留的根因不是简报重绘，而是 12px 字形超出游戏 8px 脏矩形，
-    // 现已由 EffectiveDrawHeight() 从字形本身解决，不再改动任何背景像素。
     int len = (int)strlen(text);
     // 译文为对齐原文长度在行尾补了空格，排版时忽略整段末尾的填充
     while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t')) --len;
@@ -2025,8 +2089,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID /*lpRese
         if (g_hfont) DeleteObject(g_hfont);
         if (g_hdc) DeleteDC(g_hdc);
         if (g_log) {
-            Log("inkundo: 累计恢复 %u 个笔画像素，活跃文本块 %u\n",
-                g_inkRevoked, (unsigned)g_inkBlocks.size());
+            Log("backplate: 累计擦除 %u 个旧笔画像素，墨迹图 %dx%d\n",
+                g_backplatePx, g_inkW, g_inkH);
+            free(g_inkMark); g_inkMark = nullptr;
             Log("PG2CHS: 卸载\n"); fclose(g_log); g_log = nullptr;
         }
         break;
