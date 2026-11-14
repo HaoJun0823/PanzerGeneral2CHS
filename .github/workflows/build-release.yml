@@ -1,361 +1,169 @@
 name: build-release
 
 # ============================================================================
-# PanzerGeneral2CHS 汉化补丁构建 + 自动发 Release（ubuntu-latest + msvc-wine 版）
+# 装甲元帅2 汉化补丁：编译 -> 打包 -> 校验 -> Artifact ->（可选）Release
 # ----------------------------------------------------------------------------
-# 产物（简体中文 zip，可直接解压到游戏根目录）：
-#   PanzerGeneral2-CHS-{date}-{time}.zip
+# 产物：build_out/PanzerGeneral2-CHS-<date>-<time>.zip
+#       解压到游戏根目录即可用；包内 update/ 为 GOG 快捷方式指定的工作目录。
 #
 # 触发：
-#   workflow_dispatch     —— 唯一入口，需人工在 Actions 页点「Run workflow」。
-#   ★ 暂不启用自动构建：发布包由维护者本地 build_release.py 装配后手动上传 Release。
-#   需要恢复自动构建时，把下面 on: 里的 push / pull_request 段加回来即可。
+#   push(master / dev)     自动构建 + 校验 + 上传 Artifact
+#   pull_request(master)   门禁（只构建，不发布）
+#   workflow_dispatch      手动；可勾选 publish 顺带发 Release、skip_dll 只打包文本
 #
-# ★ 架构：windows-latest 不带 v141（MSVC 14.16），故复用参考项目（MajestyIIExtend /
-#   SR_GAME_CHINESE）的 msvc-wine 方案：用官方 manifest 从微软 CDN 拉 VC 14.16 +
-#   SDK 26100，wine 运行真 cl.exe。
-#   · VC 14.16 走 VS2017 channel（--major 15，v141 只在此 manifest 存在）；
-#   · SDK 26100 走 VS2022 channel（--with-default=no），再 mv 合并进同一 prefix。
-#   · 游戏是 32 位，故编译 Win32/x86（Hostx64/x86 cl 包装）。
+# ★ 架构：windows-latest + MSVC x86（VS2022 v143 的 Hostx64/x86 交叉工具）。
+#   本机开发用 VS2017 v141，但本 DLL 是普通 Win32 C++（无 vcxproj / 无第三方 lib），
+#   用 CI 现成的 MSVC x86 直接 cl 编译即可，不需要在 runner 上加装 v141，
+#   也不需要旧方案「ubuntu + msvc-wine 下载 4GB 工具链」的 30 分钟冷启动。
+#   DLL 仍是 PE32（32 位），由 verify_release.py 硬校验。
+#
+#   ilammy/msvc-dev-cmd 把 cl / INCLUDE / LIB 写进 GITHUB_ENV，后续步骤都继承。
+#   build_dll_local.py 在 cl 位于 PATH 时直接沿用这些环境变量，不覆盖。
 # ============================================================================
 
 on:
-  # 仅手动触发，避免 push 时自动编译 / 自动发 Release
+  push:
+    branches: [master, dev]
+    # 纯文档改动不消耗 runner
+    paths-ignore:
+      - '**.md'
+      - 'Documents/**'
+  pull_request:
+    branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'Documents/**'
   workflow_dispatch:
     inputs:
+      publish:
+        description: '构建完成后同时创建 GitHub Release（默认只上传 Artifact）'
+        type: boolean
+        default: false
       skip_dll:
-        description: '跳过 ASI 编译（复用已提交 dist/ 成品，或纯文本阶段）'
+        description: '跳过 ASI 编译（只打包文本资源）'
         type: boolean
         default: false
 
 permissions:
   contents: read
 
-# 同一分支/PR 的新推送取消旧的进行中构建，省 runner
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: 构建发布包（ubuntu-latest + msvc-wine MSVC v141 x86）
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
+    name: 构建 / 打包 / 校验（windows-latest, MSVC x86）
+    runs-on: windows-latest
+    timeout-minutes: 30
     env:
-      # 所有 .py 都与中文交互；CI 强制 UTF-8，避免 UnicodeEncodeError
       PYTHONUTF8: '1'
       PYTHONIOENCODING: 'utf-8'
-      # msvc-wine 安装目录（VC 14.16 + 合并进来的 SDK 26100）
-      MSVC_WINE_PREFIX: ${{ github.workspace }}/.msvc
-      # SDK 26100 的独立下载目录（下载后 mv 合并进 MSVC_WINE_PREFIX）
-      MSVC_SDK_DIR: ${{ github.workspace }}/.msvc-sdk
-      # msvc-wine 上游 checkout 的 ref。升级时改这里 —— cache key 含它。
-      MSVCWINE_REF: master
 
     steps:
       - name: 检出仓库
         uses: actions/checkout@v7.0.1
-
-      # 必须完整 checkout msvc-wine（install.sh 要用 lowercase / fixinclude /
-      # wrappers / msvctricks.cpp）
-      - name: 检出 msvc-wine
-        uses: actions/checkout@v7.0.1
-        with:
-          repository: mstorsjo/msvc-wine
-          ref: ${{ env.MSVCWINE_REF }}
-          path: .msvc-wine
 
       - name: 配置 Python
         uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
 
-      - name: 安装 wine / msitools 等依赖
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y wine64 msitools ca-certificates winbind
-          wine --version
-
-      # 工具链缓存（VC 14.16 + SDK 26100 合并后约 4GB，压缩后可缓存）
-      - name: 还原 MSVC 工具链缓存
-        uses: actions/cache@v6.1.0
+      - name: 初始化 MSVC x86 编译环境
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          path: .msvc
-          key: pg2-msvcwine-v141-x86-sdk26100-${{ env.MSVCWINE_REF }}-v2
+          arch: x86
 
-      # 下载工具链（缓存未命中时）：两段 vsdownload + 合并
-      #   ★ 段 1（VC 14.16）：--major 15 是**关键**（v141 只存在于 VS2017 manifest）。
-      #   ★★ --architecture **x86 x64**（两者都要）：x86 cl.exe 启动按 PATH 找
-      #      mspdbcore.dll，而它只在 Hostx64/x64 目录；只拉 x86 会 C1356。
-      #   ★ 段 2（SDK 26100）：保体积指纹的必要条件；VS2022 channel 按 --sdk-version 选中。
-      #   ★ 合并：mv .msvc-sdk/Windows\ Kits -> .msvc/。
-      - name: 下载并装配 MSVC v141 + Win10 SDK 26100（缓存未命中时）
+      - name: 编译器诊断（cl / Python / 目标架构）
+        shell: bash
         run: |
           set -euo pipefail
-          if [ -x "${MSVC_WINE_PREFIX}/bin/x86/cl" ] && [ -d "${MSVC_WINE_PREFIX}/kits/10/include/10.0.26100.0" ]; then
-            echo "工具链缓存命中（VC 14.16 + SDK 26100），跳过下载。"
-          else
-            echo "==> [1/3] 下载 VC 14.16 (v141, VS2017 channel, x86+x64)"
-            python3 .msvc-wine/vsdownload.py \
-              --accept-license --major 15 --msvc-version 15.9 \
-              --architecture x86 x64 --host-arch x64 \
-              --with-sdk=no --with-atl=no --with-asan=no --with-dia=no \
-              --with-msbuild=no --with-devcmd=no \
-              --dest "${MSVC_WINE_PREFIX}"
+          cl 2>&1 | head -3 || true
+          python -c "import shutil,sys; p=shutil.which('cl') or shutil.which('cl.exe'); print('cl =',p); sys.exit(0 if p else 1)"
+          python --version
 
-            echo "==> [2/3] 下载 Win10 SDK 26100 (VS2022 channel)"
-            python3 .msvc-wine/vsdownload.py \
-              --accept-license --major 17 \
-              --sdk-version 10.0.26100 \
-              --with-default=no \
-              --architecture x86 --host-arch x64 \
-              --dest "${MSVC_SDK_DIR}"
-
-            echo "==> [3/3] 合并 SDK 26100 进 MSVC prefix"
-            if [ -d "${MSVC_WINE_PREFIX}/Windows Kits" ]; then
-              echo "!! .msvc/Windows Kits 已存在，意外状态" >&2; exit 1
-            fi
-            mv "${MSVC_SDK_DIR}/Windows Kits" "${MSVC_WINE_PREFIX}/"
-          fi
-          rm -rf "${MSVC_SDK_DIR}"
-
-      # install.sh：大小写修复 + 包装脚本生成（幂等）
-      - name: install.sh（生成包装脚本 / 大小写修复）
-        run: |
-          set -euo pipefail
-          sh .msvc-wine/install.sh "${MSVC_WINE_PREFIX}"
-
-      # 编译器验证（门禁 + 诊断）：必须看到 19.16（MSVC 14.16 / v141），
-      # 防止 vsdownload 参数被上游改动后静默回退新版工具集。
-      - name: 验证编译器为 MSVC v141 x86（诊断 + 门禁）
-        run: |
-          set -euo pipefail
-          export PATH="${MSVC_WINE_PREFIX}/bin/x86:$PATH"
-          # 载入 INCLUDE/LIB/WINEPATH（供 cl 查找头文件/库/mspdbcore）
-          if [ -f "${MSVC_WINE_PREFIX}/msvcenv.sh" ]; then
-            source "${MSVC_WINE_PREFIX}/msvcenv.sh"
-          fi
-          echo "── mspdbcore.dll 就位检查（C1356 根因诊断）──"
-          find "${MSVC_WINE_PREFIX}/vc/tools/msvc" -name mspdbcore.dll 2>/dev/null || true
-          echo "── cl banner ──"
-          banner="$(cl 2>&1 || true)"
-          echo "$banner" | head -2
-          if ! echo "$banner" | grep -q "19\.16"; then
-            echo "!! cl 不是 MSVC 14.16 (v141) —— vsdownload 可能回退了版本" >&2
-            exit 1
-          fi
-          echo "── Win SDK 版本（应只有 10.0.26100.0）──"
-          ls "${MSVC_WINE_PREFIX}/kits/10/include/"
-          echo "── 磁盘余量 ──"
-          df -h .
-
-      # 编译 ASI（PG2CHS_DLL，v141 Win32/x86）。cl 已在 PATH，INCLUDE/LIB 由 msvcenv 提供。
-      - name: 编译 PG2CHS_DLL (msvc-wine cl)
+      - name: 编译 PG2CHS_DLL（Win32 / x86）
         if: ${{ github.event.inputs.skip_dll != 'true' }}
+        shell: bash
         run: |
           set -euo pipefail
-          export PATH="${MSVC_WINE_PREFIX}/bin/x86:$PATH"
-          if [ -f "${MSVC_WINE_PREFIX}/msvcenv.sh" ]; then
-            source "${MSVC_WINE_PREFIX}/msvcenv.sh"
-          fi
-          python3 Tools/ci/build_dll_local.py
+          python Tools/ci/build_dll_local.py --clean
 
-      # 若跳过 DLL 编译，给出提示（纯文本阶段仍应装配 zip）
       - name: 跳过 ASI 编译
         if: ${{ github.event.inputs.skip_dll == 'true' }}
+        shell: bash
         run: echo "workflow_dispatch 勾选了 skip_dll：本次为纯文本构建。"
 
-      # 装配发布包：Resources/CHS + dist + （编译好的）ASI -> build_out/PanzerGeneral2-CHS-*.zip
       - name: 装配发布包 (build_release.py)
+        shell: bash
         run: |
           set -euo pipefail
-          python3 Tools/ci/build_release.py --out-root build_out \
+          python Tools/ci/build_release.py --out-root build_out \
             ${{ github.event.inputs.skip_dll == 'true' && '--skip-dll' || '' }}
 
-      # 结构闸门：独立校验 zip 能否装进游戏跑起来（含 ASI 必须为 32 位 PE）。
       - name: 校验发布包 (verify_release.py)
+        shell: bash
         run: |
           set -euo pipefail
-          python3 Tools/ci/verify_release.py build_out
+          args=""
+          if [ "${{ github.event.inputs.skip_dll }}" != "true" ]; then
+            args="--require-asi"
+          fi
+          python Tools/ci/verify_release.py build_out $args
 
-      # 上传 Artifact
-      - name: 上传 CHS 发布包
+      - name: 上传发布包 Artifact
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: pg2-chs
+          name: pg2-chs-${{ github.ref_name }}-${{ github.run_number }}
           path: build_out/PanzerGeneral2-CHS-*.zip
           if-no-files-found: error
+          retention-days: 30
 
-  # 发布：push main/master/rebuild 时自动打日期 tag + 发 Release
-  # 复刻参考项目：不再依赖「tag push 重触发 workflow」（GITHUB_TOKEN 推的 tag
-  # 不触发 on:push），改为在同一 run 内由 gh CLI 直接发版。
   publish:
-    name: 发布 Release
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/rebuild') }}
+    name: 发布 Release（仅手动勾选 publish 时）
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true' }}
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: 检出仓库（git tag / 提交记录需要）
+      - name: 检出仓库（取提交记录）
         uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - name: 下载 CHS zip
+      - name: 下载发布包
         uses: actions/download-artifact@v8.0.2
         with:
+          name: pg2-chs-${{ github.ref_name }}-${{ github.run_number }}
           path: dist
 
-      - name: 计算 tag（汉化补丁- 前缀，上海时区）
-        id: tag
+      - name: 创建 Release
+        shell: bash
         run: |
           set -euo pipefail
           tag="汉化补丁-$(TZ=Asia/Shanghai date +%Y-%m-%d-%H-%M-%S)"
-          if gh api "repos/${{ github.repository }}/git/ref/tags/$tag" >/dev/null 2>&1; then
-            tag="${tag}-${GITHUB_RUN_NUMBER}"
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "将使用 tag: $tag"
-
-      # 生成 Release 说明：三段结构（下载表 + 必读说明 + 提交记录）
-      - name: 生成 Release 说明（下载表 + 必读说明 + 提交记录）
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="${{ steps.tag.outputs.tag }}"
-          slug="${{ github.repository }}"
-          repo_url="https://github.com/$slug"
-
-          # 用 find 兼容 download-artifact 落盘层级差异
-          zip_path="$(find dist -name 'PanzerGeneral2-CHS-*.zip' -print -quit 2>/dev/null || true)"
+          zip_path="$(find dist -name 'PanzerGeneral2-CHS-*.zip' -print -quit)"
           if [ -z "$zip_path" ]; then
-            echo "!! 未找到 PanzerGeneral2-CHS zip；dist 实际内容：" >&2
-            ls -R dist >&2 || true
+            echo "!! dist 内没有发布包：" >&2
+            ls -R dist >&2
             exit 1
           fi
-          zip_name="$(basename "$zip_path")"
-
-          # 提交范围：自上次 Release 的 commit 起
-          latest="$(gh api "repos/$slug/releases/latest" 2>/dev/null || true)"
-          prev_tag="$(printf '%s' "$latest" | jq -r '.tag_name // empty' 2>/dev/null || true)"
-          prev_sha="$(printf '%s' "$latest" | jq -r '.commit.sha // empty' 2>/dev/null || true)"
-          if [ -z "$prev_sha" ] && [ -n "$prev_tag" ]; then
-            prev_sha="$(gh api "repos/$slug/git/refs/tags/$prev_tag" --jq '.object.sha // empty' 2>/dev/null || true)"
-            if [ "$(git cat-file -t "$prev_sha" 2>/dev/null || true)" = "tag" ]; then
-              prev_sha="$(gh api "repos/$slug/git/refs/tags/$prev_tag" --jq '.object.object.sha // empty' 2>/dev/null || true)"
-            fi
-          fi
-          if [ -n "$prev_sha" ] && git cat-file -e "${prev_sha}^{commit}" 2>/dev/null; then
-            base="$prev_sha"; base_label="$prev_tag"
-          else
-            base="$(git rev-list --max-parents=0 HEAD)"; base_label="首个提交"
-          fi
-
-          : > commits.md
-          git log --no-merges --max-count=60 --pretty=tformat:'%H%x09%s' "$base..HEAD" \
-            | while IFS=$'\t' read -r h s; do
-                if [ -z "$h" ]; then continue; fi
-                printf -- '- [`%s`](%s/commit/%s) %s\n' "${h:0:7}" "$repo_url" "$h" "$s" >> commits.md
-              done
-          n=$(grep -c '^- ' commits.md || true)
-          echo "本次提交记录：$n 条（基准 $base_label）"
-
-          cat > release_notes.md <<'EOF'
-          ## 《装甲元帅 2》（Panzer General 2）汉化补丁 · `@@TAG@@`
-
-          下载 zip，**把包内全部文件解压覆盖到游戏根目录**（PG2UK220.EXE 所在处）。
-          安装、卸载与常见问题见下方「必读说明」。
-
-          > ⚠️ 本补丁为运行时注入式汉化（`winmm.dll` + `scripts/PG2CHS_DLL.asi`），
-          > 不修改游戏原始文件，删除 `winmm.dll` 与 `scripts` 即可还原英文原版。
-          > 安装前请备份存档与原始文件。
-          EOF
-
           {
+            echo "## 《装甲元帅 2》汉化补丁"
             echo
-            echo "### 🧾 本次更新（自 \`$base_label\` 起，共 ${n} 条提交）"
+            echo "由 GitHub Actions 从提交 \`${GITHUB_SHA:0:7}\` 自动构建，下载 zip 后解压覆盖到游戏根目录。"
+            echo "安装 / 卸载 / 常见问题见包内 \`必读说明.txt\`。"
             echo
-            if [ -s commits.md ]; then cat commits.md; else echo "(本次构建无新增提交)"; fi
-          } >> release_notes.md
-
-          {
-            echo
-            echo "### 📦 下载"
-            echo
-            echo "| 附件名 | 内容 |"
+            echo "| 附件 | 说明 |"
             echo "|---|---|"
-            echo "| \`$zip_name\` | 简体中文（CHS）汉化包 |"
-            echo
-            echo "### 📖 必读说明（安装 / 卸载 / 常见问题）"
-          } >> release_notes.md
-
-          {
-            echo
-            # 必读说明在 zip 内部（artifact 只上传 zip），故从 zip 里取，保证与玩家一致。
-            readme_embed=""
-            if unzip -p "$zip_path" '必读说明.txt' 2>/dev/null | tr -d '\r' > readme_embed.txt && [ -s readme_embed.txt ]; then
-              readme_embed="$zip_path"
-            fi
-            if [ -s readme_embed.txt ]; then
-              echo "<details><summary>展开完整必读说明（与包内 必读说明.txt 一致）</summary>"
-              echo
-              echo "<pre>"
-              cat readme_embed.txt
-              echo "</pre>"
-              echo
-              echo "</details>"
-            else
-              echo "> ⚠️ 未能从 zip 内取出 必读说明.txt，本次未附带。"
-            fi
-            echo
-            echo "---"
-            echo
-            echo "源码仓库：<https://github.com/HaoJun0823/PanzerGeneral2CHS>　·　作者主页：<https://www.haojun0823.xyz/>"
-          } >> release_notes.md
-
-          sed -i "s/@@TAG@@/$tag/g" release_notes.md
-          if grep -q '@@TAG@@' release_notes.md; then
-            echo "!! 仍有未替换的 @@TAG@@" >&2; exit 1
-          fi
-          echo "── release_notes.md 生成完毕（$(wc -l < release_notes.md) 行）──"
-
-      - name: 创建 Release 并校验 body
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="${{ steps.tag.outputs.tag }}"
-          slug="${{ github.repository }}"
-
-          if [ ! -f release_notes.md ]; then echo "!! 未找到 release_notes.md" >&2; exit 1; fi
-          for sec in "### 📦 下载" "### 📖 必读说明" "### 🧾 本次更新"; do
-            if ! grep -qF "$sec" release_notes.md; then
-              echo "!! release_notes.md 缺少段落「$sec」" >&2; exit 1
-            fi
-          done
-          echo "✓ release_notes.md 三段预检通过"
-
-          zip_path="$(find dist -name 'PanzerGeneral2-CHS-*.zip' -print -quit 2>/dev/null || true)"
-          if [ -z "$zip_path" ]; then
-            echo "!! 未找到 PanzerGeneral2-CHS zip；dist 实际内容：" >&2
-            ls -R dist >&2 || true
-            exit 1
-          fi
-
-          gh release create "$tag" \
-            "$zip_path" \
+            echo "| \`$(basename "$zip_path")\` | 简体中文（CHS）汉化包 |"
+          } > notes.md
+          gh release create "$tag" "$zip_path" \
             --target "$GITHUB_SHA" \
             --title "装甲元帅2 汉化补丁 $tag" \
-            --notes-file release_notes.md
-
-          body="$(gh release view "$tag" --repo "$slug" --json body --jq .body)"
-          body_head="${body%%$'\n'*}"
-          if [ -z "$body_head" ] || [[ "$body_head" != "## 《装甲元帅 2》（Panzer General 2）汉化补丁"* ]]; then
-            echo "!! Release body 异常（首行=[$body_head]）" >&2; exit 1
-          fi
-          echo "✓ Release body 已写入（首行：${body_head}…）"
-          echo "✅ 已发布: $tag"
+            --notes-file notes.md
+          echo "已发布：$tag"
