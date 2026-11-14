@@ -32,6 +32,9 @@ PG2CHS_DLL/**/*.exp
 PG2CHS_DLL/**/*.lib
 PG2CHS_DLL/**/*.log
 
+# ---- 本地构建输出目录（cl /LD 产物、字形预览 PNG、调试副本）----
+PG2CHS_DLL/build/
+
 # ---- 发布构建产物（build_release.py / CI 生成，不入库）----
 build_out/
 release/
