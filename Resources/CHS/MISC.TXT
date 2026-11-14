@@ -1,28 +1,28 @@
-CLEAR
-CITY
-AIRFIELD
-FOREST
-BOCAGE
-HILL
-MOUNTAIN
-SAND
-SWAMP
-OCEAN
-RIVER
-FORTIFICATION
-PORT
-STREAM
-ESCARPMENT
-IMPASSABLE RIVER
-ROUGH
-Close Assault
-Assault
-Experience:
-Ammo:
-Fuel:
-Expected Losses:
-Attk:
-Dfnd:
-Ent:
-Remove this Line:
+开阔
+城市
+机场
+森林
+树篱
+丘陵
+山地
+沙漠
+沼泽
+海洋
+河流
+要塞
+港口
+小溪
+悬崖
+不可逾越河流
+粗糙地形
+近距离突击
+突击
+经验：
+弹药：
+燃料：
+预计损失：
+攻击：
+防御：
+掘进：
+删除此行：
 

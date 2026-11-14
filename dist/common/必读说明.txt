@@ -25,5 +25,5 @@ Resources 中覆盖的 *.TXT 与 scripts\PG2CHS_DLL.asi 等），恢复官方原
 
 
 【常见问题】
-- 若字体显示为方块：通常是 asi 未加载，确认 winmm.dll 与 games 根目录同级。
+- 若字体显示为方块：通常是 asi 未加载，确认 winmm.dll 与游戏根目录同级。
 - 若游戏启动异常：先移走 winmm.dll 恢复英文，再排查。
