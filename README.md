@@ -118,17 +118,3 @@ CI 工作流保留在 `.github/workflows/build-release.yml`，但**当前不启�
 - **Visual Studio 2017（MSVC 14.16 / v141）** + **Windows SDK 10.0.26100.0**（与参考项目同款，
   保证 msvc-wine CI 与本地一致）
 - 可选：**IDA Pro + ida-pro-mcp**（用于逆向渲染路径与字符串交叉引用）
-
-## 游戏路径
-
-```
-I:\LocalGames\Panzer General 2\PG2UK220.EXE
-```
-
----
-
-## 参考项目（同作者，本仓库的 LICENSE / 工作流 / 资源打包 CI 思路取自它们）
-
-- `G:/Projects/ArmyMenCHS` —— 玩具兵大战系列，ASI/内存补丁
-- `G:/Projects/MajestyIIExtend` —— Majesty2，ASI + 字体烘焙 + texts.zip
-- `G:/Projects/SR_GAME_CHINESE` —— 黑道圣徒，ASI + stb_truetype 现场字形 + le_string 替换
