@@ -33,11 +33,13 @@
 ## 快速开始
 
 ### 玩家：安装
-下载 Release 里的 zip，**解压到游戏根目录**（exe 所在处），覆盖同名文件。
+到 **Releases** 下载维护者手动上传的汉化补丁包 zip，**解压到游戏根目录**
+（exe 所在处），覆盖同名文件。安装前请备份存档与原始文件。
 
-> ⚠️ 安装步骤与细节以包内 `必读说明.txt` 为准。渲染重定向（CJK 字形合成）已完成 MVP，
-> 当前可用的发布包已能注入并渲染中文；缺的是 `Resources/CHS/` 的中文文本翻译
-> （目前仍是英文基线，需逐行汉化）。
+> ⚠️ 安装步骤与细节以包内 `必读说明.txt` 为准。当前为**全量汉化**：
+> GUI / 菜单 / 剧本简报 / 关卡按钮已中文化；地形、装备、姓氏等英文词条由显示层
+> 译名表 `ExtraTerms.txt` 在绘制时替换，磁盘数据文件保持英文，以兼容地图匹配、
+> 索引与存档。
 
 ### 开发者：构建
 ```bash
@@ -53,8 +55,9 @@ python Tools\ci\build_release.py --out-root build_out
 python Tools\ci\verify_release.py build_out
 ```
 
-CI（GitHub Actions）在 push 主分支时自动：msvc-wine 编译 32 位 ASI → 装配 zip →
-上传 Artifact → 同 run 内按「日期-时间」打 tag 并发布 Release。
+CI 工作流保留在 `.github/workflows/build-release.yml`，但**当前不启用自动构建**：
+仅支持在 Actions 页手动 `workflow_dispatch` 触发。发布包由维护者本地执行
+`Tools/ci/build_release.py` 装配后，**手动上传到 Release**。
 
 ---
 
@@ -66,7 +69,8 @@ CI（GitHub Actions）在 push 主分支时自动：msvc-wine 编译 32 位 ASI 
    不含中文字形，纯替换 `.txt` 文本会出现「方块/空白」。渲染路径已用 IDA 锁定——
    游戏内文字是 8 位调色板帧缓冲的逐像素写入，本补丁在 hook 点用 GDI `GetGlyphOutline`
    取中文字形、经游戏颜色表写进帧缓冲（见 `research_handoff.md` §2 / §3.1）。
-   当前 MVP 直接使用系统 CJK 字体（微软雅黑 / 宋体），无需额外字库文件。
+   直接使用系统 CJK 字体（宋体 / 微软雅黑），无需额外字库文件。汉字字形按游戏
+   8px 脏矩形做纵向压高（见 `research_handoff.md` §12.4），避免字底残留叠字。
 
 ---
 
@@ -76,16 +80,18 @@ CI（GitHub Actions）在 push 主分支时自动：msvc-wine 编译 32 位 ASI 
 写出 GBK，严格对齐行数，保留末尾 `0x1A` 控制符）。已翻译文本经 `sub_43B2C2` 渲染为
 中文；纯 ASCII 专有名词走原渲染器，不影响显示。
 
-| 文件 | 行数 | 内容 | 状态 |
+| 文件 | 行数 / 条数 | 内容 | 状态 |
 |------|------|------|------|
-| `GUI97.TXT` | 440 | 菜单 / 界面 / 热键 / 天气 / 单位类别 | ✅ 已译（2026-11-14） |
-| `MISC.TXT` | 27 | 地形类型 / 战斗术语 | ✅ 已译（2026-11-14） |
-| `NAMES.TXT` | 400 | 指挥官姓氏（德语/俄语/英/美专有名词） | ⏸ 暂不改（ASCII 渲染器即可显示） |
-| `EQUIP97.TXT` | ~170 | 装备/单位型号（StuG IIIG、Pz IVG 等专有代号） | ⏸ 暂不改（同上） |
-| `SCENARIO/*.TXT` | 250 | 各剧本说明长文本 | 🔜 待译（批次二） |
+| `GUI97.TXT` | 440 行 | 菜单 / 界面 / 热键 / 天气 / 单位类别 | ✅ 全译 |
+| `MISC.TXT` | 27 行 | 地形类型 / 战斗术语 | ✅ 全译 |
+| `SCENARIO/*.TXT` | 306 个 | 剧本标题 + 简报长文本 | ✅ 全译（换行 / 分页已适配） |
+| `scenario_zh.txt` / `scenario_keys.txt` | 322 行 | 简报译文与标题键 | ✅ 校订 |
+| `ExtraTerms.txt` | 1455 条 | 地形 / 城市 / 河流 / 装备 / 姓氏 / 日期 | ✅ 显示层替换 |
+| `FragTitleFix.txt` | 2 条 | 关卡列表按钮首字节碎片校订 | ✅ |
+| `NAMES.TXT` / `EQUIP97.TXT` | 400 / ~170 行 | 姓氏与装备型号 | ⏸ 磁盘保持英文，走显示层替换 |
 
-> 已译文件已部署到游戏根目录（及 `update\`）供真机验证；游戏原始英文已备份到
-> `I:\LocalGames\Panzer General 2\PG2CHS_backup\`。
+> `NAMES.TXT` / `EQUIP97.TXT` 及剧本**数据行**刻意保留英文，避免破坏地图匹配、
+> 索引与存档；显示层替换只影响绘制，不写回文件。`Tools/translate/` 是各译文表的生成脚本。
 
 ---
 
@@ -96,8 +102,9 @@ CI（GitHub Actions）在 push 主分支时自动：msvc-wine 编译 32 位 ASI 
 | `Documents/research_handoff.md` | ★ 完整技术文档（先读这个） |
 | `PG2CHS_DLL/` | ASI/DLL 汉化插件源码（VS2017 v141，Win32+x64，Win10 SDK 26100） |
 | `Resources/ENG/` | 游戏原始英文文本基线（翻译源，行式索引） |
-| `Resources/CHS/` | 中文翻译工作副本（初始=英文，待译；保持行数/顺序） |
-| `Fonts/` | 可选自包含 CJK 字体（当前 MVP 直接用系统字体：微软雅黑/宋体） |
+| `Resources/CHS/` | 中文译文（全量；严格保持行数/顺序与原始字节长度） |
+| `Tools/translate/` | 译文生成脚本：`gen_chs_text.py` / `gen_scenario_chs.py` / `gen_extra_terms.py` |
+| `Fonts/` | 可选自包含 CJK 字体（当前直接使用系统字体：宋体 / 微软雅黑） |
 | `dist/` | 构建**输入**源：ASI Loader（`common/winmm.dll`）+ `必读说明.txt` |
 | `Tools/ci/` | 构建、打包、校验脚本 |
 | `build_out/` | 构建产物输出（gitignore，不入版本控制） |

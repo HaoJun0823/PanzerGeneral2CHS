@@ -134,6 +134,25 @@ def build(out_root: Path, lang: str, date: str | None, skip_dll: bool, dll_path:
     if cfg.is_file():
         shutil.copy2(cfg, upd / "PG2CHS.ini"); copied.append("update/PG2CHS.ini")
 
+    # 2c) 显示层译名表：把城市/河流/装备/姓氏的英文显示串换成中文。
+    #     磁盘上的 NAMES/EQUIP/SCENARIO 数据文件仍是英文，逻辑与存档零改动。
+    terms = chs / "ExtraTerms.txt"
+    if terms.is_file():
+        shutil.copy2(terms, upd / "ExtraTerms.txt")
+        shutil.copy2(terms, stage / "ExtraTerms.txt")
+        copied.append("ExtraTerms.txt (根 + update)")
+    else:
+        print("!! 缺少 Resources/CHS/ExtraTerms.txt（显示层译名表）")
+
+    # 2d) 关卡按钮标题校订表：修正 1 字节碎片在多候选时的 nearest 互换
+    fix = chs / "FragTitleFix.txt"
+    if fix.is_file():
+        shutil.copy2(fix, upd / "FragTitleFix.txt")
+        shutil.copy2(fix, stage / "FragTitleFix.txt")
+        copied.append("FragTitleFix.txt (根 + update)")
+    else:
+        print("!! 缺少 Resources/CHS/FragTitleFix.txt（按钮标题校订表）")
+
     # 3) 顶层文本表（行式位置索引，保持行数/顺序）
     for name in ROOT_TXT:
         src = chs / name

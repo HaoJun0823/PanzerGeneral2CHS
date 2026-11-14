@@ -53,6 +53,62 @@ COUNT_RE = re.compile(r"^(\d+)\s+(Players|Player|Turns|Turn)$")
 ORDINAL_RE = re.compile(r"^(Two|Three|Four|Two|2|3|4)\s+Player(s)?$", re.I)
 
 
+# 场景「数据文件」的首行其实是场景/战役标题，其余行是城市名、地形代码与
+# 坐标（参与地图数据匹配，绝不能改）。之前整份文件原样复制，导致战役/场景
+# 选择列表里出现英文标题（如 "Windsor 1943"、"Four Player Madness"）。
+# 这里只替换首行，并保持该行字节数：译文短则行尾补半角空格，长则登记告警。
+# 键 = 英文标题原文，值 = 中文（GBK 编码，汉字 2 字节）。
+DATA_TITLES = {
+    "Four Player Madness":           "四人混战",
+    "Invasion Salerno":              "萨莱诺登陆",
+    "Arracourt":                     "阿拉库尔",
+    "Caen - Operation Goodwood":     "卡昂 - 古德伍德行动",
+    "Caen - Charnwood - Oden Valley":"卡昂 - 查恩伍德 - 奥登谷",
+    "Cauldron":                      "大熔炉",
+    "Ciechanow":                     "切哈努夫",
+    "Dessau":                        "德绍",
+    "Finnish Finished?":             "芬兰完了？",
+    "Finnish Vacation":              "芬兰假期",
+    "Drive to the Sea":              "向海岸推进",
+    "Gibraltar or Bust (3 Player)":  "直布罗陀或失败（3人）",
+    "Kanev":                         "卡涅夫",
+    "Kishinev":                      "基希讷乌",
+    "Klin":                          "克林",
+    "Operation Konrad":              "康拉德行动",
+    "Leningrad":                     "列宁格勒",
+    "Lillehammer":                   "利勒哈默尔",
+    "Madrid Offensive":              "马德里攻势",
+    "Malta":                         "马耳他",
+    "Metz":                          "梅斯",
+    "Caging the Bear (Multi)":       "困住巨熊（多人）",
+    "Red Tide Rising (3 Player)":    "赤潮上涨（3人）",
+    "Nordwind":                      "北风行动",
+    "Novgorod":                      "诺夫哥罗德",
+    "Oak Ridge":                     "橡树岭",
+    "Zitadelle":                     "堡垒行动",
+    "Prokhorovka":                   "普罗霍罗夫卡",
+    "Pursuit To Tobruk":             "追击托布鲁克",
+    "Red Tide Rising":               "赤潮上涨",
+    "Race to Dunkirk":               "奔向敦刻尔克",
+    "Avalanche":                     "雪崩行动",
+    "Salerno - Return To Europe":    "萨莱诺 - 重返欧洲",
+    "Saturn on the Chir":            "奇尔河上的土星",
+    "Savannah":                      "萨凡纳",
+    "Sedan":                         "色当",
+    "Seelow Heights":                "塞洛高地",
+    "Advance On St. Lo":             "向圣洛推进",
+    "St. Lo - Operation Cobra":      "圣洛 - 眼镜蛇行动",
+    "Suomussalmi":                   "苏奥穆斯萨尔米",
+    "Thermopylae":                   "温泉关",
+    "Tobruk":                        "托布鲁克",
+    "Tutorial":                      "教程",
+    "Viipuri":                       "维堡",
+    "Volokolamsk":                   "沃洛科拉姆斯克",
+    "Windsor":                       "温莎",
+    "Windsor 1943":                  "温莎 1943",
+    "Winter Storm":                  "冬季风暴",
+}
+
 def is_brief_file(text: str) -> bool:
     """判定是否为「简报文本」文件；数据文件返回 False。"""
     if "\t" in text:
@@ -144,7 +200,7 @@ def main():
 
     files = sorted(ENG_DIR.glob("*.TXT"))
     untranslated = {}          # 原文行 -> 出现次数
-    n_brief = n_data = 0
+    n_brief = n_data = n_data_titled = 0
     n_lines = n_hit = 0
     too_long = []
 
@@ -160,8 +216,22 @@ def main():
             sep = "\n"
 
         if not is_brief_file(text):
-            # 数据文件：原样复制，一个字节都不改
-            (CHS_DIR / src.name).write_bytes(raw)
+            # 数据文件：只译首行标题，其余行（城市名/地形/坐标）保持原字节
+            title = parts[0].rstrip("\r") if parts else ""
+            cn = DATA_TITLES.get(title)
+            if cn:
+                tail_cr = "\r" if parts[0].endswith("\r") else ""
+                cap = len(parts[0].encode("latin-1")) - len(tail_cr)
+                b = cn.encode("gbk")
+                if len(b) > cap:
+                    too_long.append((src.name, title, len(b), cap, cn))
+                else:
+                    b += b" " * (cap - len(b))
+                parts[0] = b.decode("latin-1") + tail_cr
+                (CHS_DIR / src.name).write_bytes(sep.join(parts).encode("latin-1"))
+                n_data_titled += 1
+            else:
+                (CHS_DIR / src.name).write_bytes(raw)
             n_data += 1
             continue
 
@@ -201,7 +271,7 @@ def main():
         out = sep.join(out_lines).encode("latin-1")
         (CHS_DIR / src.name).write_bytes(out)
 
-    print(f"简报文件 {n_brief} 个（已生成），数据文件 {n_data} 个（原样复制）")
+    print(f"简报文件 {n_brief} 个（已生成），数据文件 {n_data} 个（其中 {n_data_titled} 个已译首行标题，其余行原样）")
     print(f"处理行 {n_lines}，命中译表/模板 {n_hit}，未翻译唯一行 {len(untranslated)}")
     print(f"输出目录：{CHS_DIR}")
 

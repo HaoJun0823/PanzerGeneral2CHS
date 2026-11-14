@@ -1,0 +1,1460 @@
+; PG2 汉化 · 显示层英文词条译名表（GBK）
+; 每行: 英文<TAB>中文 ; 分号开头为注释
+; 本表只影响画面显示，游戏内部/存档/地图匹配仍用英文。
+; OVERRIDES 为人工校订；其余为 Tools/translate/gen_extra_terms.py 自动音译，可直接逐条修改。
+; 想临时关闭：PG2CHS.ini 里 TranslateExtra=0
+Brettville l'Orgueilleuse	布雷特维尔洛格约斯
+St Souveur de Pierre Pont	圣索沃尔德皮埃尔蓬
+Severskii Donets River	塞韦尔基多内特河
+Arromanches les Bains	阿罗芒什莱班
+Beachhead Roger Amber	贝赫德罗格拉姆贝
+Beachhead Roger Green	贝赫德罗格尔伦
+Beachhead Uncle Green	贝赫杜恩勒格伦
+Bol'Shaya Nevka River	博勒哈内卡河
+Bol'saja Sestra River	博勒萨雅塞斯拉河
+Canal du Moselle-Rhin	卡纳勒杜莫塞勒尔
+Island Barn Reservoir	伊斯拉恩巴尔雷塞
+La Galissoniere Class	拉加利索尼埃级
+Sovetskiy Soyuz Class	苏联级
+St Souveur le Vicomte	圣索沃尔勒维孔特
+Bol'Shaya Neva River	博勒哈内瓦河
+Brettville sur Laize	莱兹河畔布雷特维尔
+Alberico Da Barbian	阿勒贝里科达巴尔
+Alberto Di Guissano	阿勒贝尔托迪古萨
+Antoniotto Usodimar	安托尼托索迪马尔
+Bol'shaya Podyarugi	博勒哈波迪鲁吉
+Bolshaya Donschinka	博勒哈多恩希恩卡
+Citta Vecchia Rabat	齐塔韦希拉巴特
+Courcelles-sur-Nied	科尔策勒斯苏尔尼
+Courseulles sur Mer	滨海库尔瑟勒
+Four Player Madness	四人混战
+Giovanni Di Verazza	吉瓦尼迪韦拉察
+Grandcamp les Bains	格朗康莱班
+King George V Class	乔治五世级
+Lanzerotto Malocell	兰策罗托马洛策勒
+Niederbrom-les-Bain	尼德尔罗姆勒斯班
+St Nicholas-du-Pont	圣尼霍拉斯杜波恩
+St Souveur Landelin	圣索沃尔朗德兰
+Colleville sur Mer	滨海科勒维尔
+Kajaszo-Szt.-Peter	卡雅斯佐斯佩特尔
+Le Fantasque Class	空想级
+Malaja Istra River	马拉雅斯拉河
+Malaya Nevka River	马拉内卡河
+Nudol' Istra River	努多利斯拉河
+Soultz-sous-Forets	索勒索斯福雷特
+St Laurent sur Mer	滨海圣洛朗
+Walton upon Thames	瓦勒托努波恩哈梅
+Advance On St. Lo	向圣洛推进
+Antonio Pigafetta	安托尼皮加费塔
+Ayla Konstantinos	阿拉科恩坦蒂诺斯
+Camp d'Oberhoffen	卡姆多贝尔霍费恩
+Condottieri Class	佣兵队长级
+Emanuele Pessagno	埃马努勒佩萨格诺
+Franceville Plage	弗阿策维勒普拉格
+Gibraltar or Bust	直布罗陀或败退
+Hauptgraben River	哈普拉本河
+Illustrious Class	光辉级
+Malaya Neva River	马拉内瓦河
+Niciloso Da Recco	尼齐洛索达雷科
+Pogny-sur-Moselle	波格尼苏尔莫塞勒
+Research Facility	雷塞尔法齐利蒂
+Scharnhorst Class	沙恩霍斯特级
+St. Pierre Brouck	圣皮雷布罗
+Storozhevoi Class	警戒级
+Tilly sur Seulles	蒂利苏尔塞勒斯
+Vierville sur Mer	滨海维耶维尔
+Cava di Terrelli	卡瓦迪泰雷利
+Eisenhuttenstadt	埃森胡滕施塔特
+Finnish Vacation	芬兰假期
+Invasion Salerno	萨莱诺登陆
+La Haye du Puits	拉艾迪皮
+La-Petite-Pierre	拉佩蒂特皮雷
+Luigi Di Cadorna	卢吉迪卡多尔纳
+Madrid Offensive	马德里攻势
+Medveditsa River	梅德韦迪特萨河
+Oder-Spree Canal	奥德尔雷卡纳勒
+Operation Konrad	康拉德行动
+Razum naya River	拉祖姆纳河
+Torigni-sur-Vire	托里尼叙尔维尔
+Torre Annunziata	托雷安农齐亚塔
+Ust'-Khoperskaya	乌斯霍佩尔卡
+Wingen-sur-Moder	维恩根苏尔莫德尔
+Alte Oder River	阿勒特德尔河
+Antonio Da Noli	安托尼达诺利
+Baltimore Class	巴尔的摩级
+Canamares River	卡纳马雷斯河
+Dunkerque Class	敦克尔库级
+Kato Dhio Vouna	卡托德希沃纳
+Kholyn'ya River	霍利尼河
+Leborecht Maass	勒博雷马斯
+Leningrad Class	勒宁格勒级
+Muzio Attendolo	穆齐滕多洛
+Novopetrovskoje	诺沃佩特罗科耶
+Perekhoda River	佩雷克霍达河
+Red Tide Rising	雷德蒂德里西恩
+Richard Beitzen	里哈尔贝特策恩
+Richelieu Class	里赫利级
+Signy-l'-Abbaye	西格尼拉巴
+Solofrone River	索洛弗罗内河
+Sperkhios River	施埃希斯河
+St Lo d'Orville	圣洛多尔维尔
+Tessay-sur-Vire	泰塞叙尔维尔
+Tobacco Factory	烟草工厂
+Torre del Burgo	托雷德勒布尔戈
+Villers Fossard	维勒尔福萨尔
+Waldsieversdorf	瓦勒西韦尔多夫
+Yasnaya Polyana	伊斯纳波利纳
+Audun-le-Roman	阿敦勒罗曼
+Aunay sur Oden	阿纳苏罗登
+Bismarck Class	比斯马尔级
+Boulay-Moselle	博拉莫塞勒
+Bourbourgville	博尔博尔维尔
+Brooklyn Class	布奥利恩级
+Camp de Bitche	卡姆德比特赫
+Chateau-Salins	希阿特萨利恩
+Cogilnic River	科吉勒尼河
+Fletcher Class	弗埃赫尔级
+Gorkavishchina	戈尔卡维斯希纳
+Littorio Class	利托里级
+Merderet River	梅德雷河
+Michajlovskoje	米哈洛科耶
+Nevion-Percien	内维恩佩尔齐恩
+Newell Station	内韦勒塔廷
+Nurnberg Class	努尔贝格级
+Oliver Springs	奥利韦尔里恩
+Pegasus Bridge	佩加苏斯桥
+Pont-a-Mousson	波恩塔莫松
+Port Wentworth	波尔韦恩沃尔
+Port en Bessin	波尔滕贝辛
+Porus'ya River	波鲁西河
+Pritchardville	普伊哈尔维尔
+Reipertswiller	雷佩尔维勒尔
+Savannah River	萨凡纳河
+Seelow Heights	塞洛高地
+St Jean de Day	圣让德代
+Szekesfehervar	策克斯费赫尔瓦尔
+Tessy-sur-Vire	泰西叙尔维尔
+Thury Harcourt	蒂里阿尔古
+Tsutskai River	茨乌卡河
+Velikyi Bukrin	韦利基布克林
+Villers Bocage	维勒尔博卡格
+Virginia Water	维尔吉尼瓦特尔
+Volosn'a River	沃洛斯纳河
+Yorktown Class	伊尔托级
+Zeppelin Class	策佩林级
+Ain el Gazala	阿内勒加察拉
+Amay sur Orne	阿马苏罗尔内
+Beachhead Red	贝赫德雷德
+Bornova River	博尔诺瓦河
+Castellammare	卡斯特拉马雷
+Churchill III	希乌希利
+Fortification	工事
+Graf Zeppelin	格阿策佩林
+Guard Cavalry	古尔卡瓦勒里
+Guilio Cesare	古利策萨雷
+Gundershoffen	贡德尔霍费恩
+Henares River	赫纳雷斯河
+Holston River	霍勒顿河
+Kapolnas Nyek	卡波勒纳斯尼克
+Kurtlak River	库尔拉克河
+Leander Class	伦德尔级
+Moselle River	摩泽尔河
+Naval Brigade	纳瓦勒里加德
+Niederroedern	尼德罗德尔
+Paula Tarshim	帕拉塔尔希姆
+Philippsbourg	弗伊利普博尔
+Polist' River	波利斯河
+Richmond Hill	里莫恩山
+Rittershoffen	里特尔霍费恩
+Scheibenhardt	施埃本哈尔
+Schweighausen	施埃豪森
+Sea Transport	海运船
+Seulles River	塞勒斯河
+Shelon' River	什埃隆河
+Soldati Class	索勒达蒂级
+St Paul's Bay	圣帕勒湾
+Staraya Russa	施阿拉鲁萨
+Suffren Class	苏弗伦级
+Vorskla River	沃尔拉河
+la Cosa River	拉科萨河
+Andrea Doria	阿恩雷多里
+Aquila Class	阿库拉级
+Aschersleben	阿舍斯莱本
+Badiel River	巴迪勒河
+Bersaglierei	贝尔萨格利雷
+Bourgue'lous	博尔古洛斯
+Bouvellemont	博韦勒蒙
+Bren Carrier	伦卡里尔
+Calore River	卡洛雷河
+Campenhausen	坎彭豪森
+Carrier Hill	卡里尔山
+Chesterfield	希埃特尔菲勒
+Chiers River	希伊河
+Churchill IV	希乌希利
+Clinch River	利恩河
+County Class	科恩蒂级
+Cromwell VII	罗姆韦勒维
+Crusader III	鲁萨德里
+Donets River	多内特河
+Elster River	埃勒特尔河
+Furstenwalde	弗尔滕瓦勒德
+Grishchentsy	格伊赫恩西
+Hatian Ridge	阿蒂安岭
+Headquarters	指挥部
+Herrlishheim	赫尔利斯海姆
+Hipper Class	希佩尔级
+Hurricane II	胡里卡内
+Hurricane IV	胡里卡内
+Kalothronion	卡洛特罗宁
+Khuper River	胡佩尔河
+King's Cross	基恩罗斯
+Krasnoe Selo	克阿诺塞洛
+La Wantzenau	拉瓦恩策纳
+Lion sur Mer	林苏尔梅尔
+Loknas River	洛克纳斯河
+Lovat' River	洛瓦特河
+Malyi Bukrin	马利布克林
+Mars-la-Tour	马尔拉托尔
+Montecorvino	蒙泰科尔维诺
+Multi-Player	穆勒蒂普拉尔
+Niederberger	尼德尔贝尔格尔
+Nudol'Sarino	努多勒萨里诺
+Oranienbaurn	奥拉宁巴尔
+Ozerna River	奥策尔纳河
+Paliokhorion	帕利克霍林
+Perelazovsky	佩雷拉佐基
+Philadelphia	弗伊拉德勒希
+Privokzal'ny	普伊沃克察勒尼
+Psizha River	西茨哈河
+Red'ya River	雷迪河
+Renown Class	雷诺级
+Royal Marine	罗勒马里内
+San Severino	圣塞韦里诺
+Sangerhausen	桑格豪森
+Sarreinsberg	萨雷恩贝格
+Schatzheimer	施阿赫梅尔
+Scheibenhard	施埃本哈尔
+Schweighofen	施埃霍费恩
+Seille River	塞勒河
+Seinne River	塞讷河
+Semois River	塞莫斯河
+Snezha River	内茨哈河
+Soufflenneim	索弗勒内姆
+Spitfire XII	施伊菲雷克伊
+Spitfire XIV	施伊菲雷克伊
+Stanislavsky	施阿尼斯拉基
+Stosstruppen	施奥鲁佩恩
+Suomussalimi	苏穆萨利米
+Szabadhidveg	察巴德希德韦格
+Tajuna River	塔尤纳河
+Thames River	特阿梅斯河
+Three Player	三人对战
+Trakhtemirov	特阿特米罗
+Tribal Class	特伊巴勒级
+Ungria River	乌恩里河
+Valentine XI	瓦伦蒂内克伊
+Vertesbogiar	韦尔特斯博吉尔
+Winter Storm	维恩特尔托尔
+Wipper River	维佩尔河
+Zariza River	察里察河
+Aisne Canal	阿斯内卡纳勒
+Aisne River	阿斯内河
+Armentieres	阿尔门蒂雷斯
+Aslag Ridge	阿斯拉格岭
+Aslag ridge	阿斯拉格里德格
+Ayla Marina	阿拉马里纳
+Battipaglia	巴蒂帕利亚
+Beaufighter	贝菲格特尔
+Bersagliere	贝尔萨格利雷
+Bischwiller	比斯维勒尔
+Bol I Shora	博利斯霍拉
+Boulzicourt	博勒齐科尔
+Bouzonville	博佐恩维尔
+Breshkovsky	布埃科基
+Broad River	布奥河
+Chamberlain	希阿贝尔兰
+Cienfuentes	齐恩弗恩特斯
+Cromwell IV	罗姆韦利
+Crusader II	鲁萨德里
+Dives River	迪韦斯河
+Dnepr River	内普河
+Douve River	杜夫河
+Drome River	德罗姆河
+Dulce River	杜勒策河
+Dunafoldvar	杜纳福勒瓦尔
+Dunapentele	杜纳佩恩特勒
+Essex Class	埃塞斯级
+Fleischmann	弗埃曼
+Fokker DXXI	福克尔克伊
+Four Player	四人对战
+Gerbeviller	格尔贝维勒尔
+Gorbatovski	戈尔巴托基
+Guadalajara	瓜达拉哈拉
+Halberstadt	哈尔伯施塔特
+Helme River	赫勒梅河
+Hercegfalva	赫尔策格法勒瓦
+Hilton Head	希勒顿赫德
+Ichel River	伊赫勒河
+Illustrious	伊卢斯里斯
+Jijia River	吉吉河
+Juntusranta	尤恩图斯拉恩塔
+Kifisokhori	基菲索克霍里
+Kirov Class	基罗级
+Kiskuplaczk	基斯库普拉
+Kryznowloga	克伊诺洛加
+Leatherhead	勒特赫尔赫德
+Legionnaire	勒吉纳雷
+Lelyushenko	勒利斯赫恩科
+Lenoir City	勒诺尔齐蒂
+Lillehammer	利勒哈梅尔
+Lipovvi Rog	利波维罗格
+Longueville	隆格维尔
+Luc sur Mer	卢苏尔梅尔
+Luvasbereny	卢瓦斯贝雷尼
+Maass Class	马斯级
+Max Schultz	马斯胡勒
+Mertzwiller	梅尔维勒尔
+Meuse River	梅塞河
+Montemarano	蒙特马拉诺
+Mosquito VI	莫斯库托维
+Mouterhouse	莫特尔霍塞
+Mulde River	穆勒德河
+New Zealand	内策拉恩
+Nicolo Zeno	尼科洛策诺
+Nikolayevka	尼科拉卡
+Noordschote	诺尔霍特
+NothWeiller	诺特韦勒尔
+Novoselovka	诺沃塞洛卡
+Ochevetyano	奥赫韦蒂诺
+Panther IIF	帕恩赫里弗
+Paratrooper	帕拉特罗佩尔
+Piispajarvi	皮斯帕雅尔维
+Poix-Terron	波斯特龙
+Pokrojskoje	波克罗科耶
+Prokhorovka	普罗霍罗夫卡
+Psoyl River	索勒河
+Quedlinburg	奎德林堡
+Radziyevsky	拉德齐基
+Rigel Ridge	参宿七岭
+Rogatschewo	罗加特赫沃
+Saale River	萨勒河
+Scharnhorst	施阿霍尔
+Shcherbakov	什埃巴科
+Sherman III	什埃马尼
+Sidi Rezegh	西迪雷策格
+Sidi Rezegi	西迪雷策吉
+Sidra Ridge	西德拉岭
+Sophienthal	索普希恩塔尔
+Sorbe River	索尔贝河
+Spitfire IX	施伊菲雷斯
+Spree River	施普埃河
+Spreenhagen	伦哈根
+St. Momelin	圣莫梅林
+Staghound I	施阿霍恩迪
+Strongpoint	据点
+Suomussalmi	苏奥穆斯萨尔米
+Sword Beach	沃尔贝
+Tanneberger	塔内贝尔格尔
+Taute River	托特河
+Thermopylae	特埃莫皮拉
+Torrebelena	托雷贝勒纳
+Valentine V	瓦伦蒂内
+Vence River	韦恩策河
+Volokolamsk	沃洛科拉姆斯克
+Warta River	瓦尔塔河
+Wissembourg	维塞姆博尔
+Alekseyeva	阿勒克塞瓦
+Almadrones	阿勒马德罗内斯
+Andruschki	阿恩鲁斯基
+Aube River	阿贝河
+Auerbacher	奥尔巴赫
+Aure River	奥尔河
+Australian	阿斯拉林
+Ayla Trias	阿拉特里斯
+Baerenthal	巴伦塔尔
+Bal-Kiliti	巴勒基利蒂
+Ballantine	巴兰蒂内
+Birkirkara	比尔基尔卡拉
+Bitterfeld	比特费尔德
+Blaringhem	布阿里恩赫姆
+Blinovskiy	布伊诺基
+Blitzkrieg	布伊里格
+Bode River	博德河
+Bourdonnay	博尔多纳
+Bray Dunes	布阿杜内斯
+Breesnyagi	布埃尼吉
+Brightwell	布伊韦勒
+Bundenthal	本登塔尔
+Cartwright	卡尔里格
+Challenger	希阿伦格尔
+Champenoux	希阿佩诺斯
+Chernetsky	希埃内特基
+Chir River	希伊河
+Chorzellen	希奥策伦
+Christmann	克里斯特曼
+Crusader I	鲁萨德里
+Dahrendorf	达伦多夫
+Daimler SC	达姆勒尔
+Demtchenko	德姆赫恩科
+Dieulouard	迪洛尔
+Duna River	杜纳河
+El Alamein	阿拉曼
+Elbe River	埃勒贝河
+Fallschirm	法勒希尔
+Fassbender	法斯本德尔
+Fedoroloka	费多罗洛卡
+Gavrilenko	加里伦科
+Gold Beach	戈勒贝
+Gravelines	格阿韦利内斯
+Gravelotte	格阿韦洛特
+Grigorovka	格伊戈罗卡
+Home Guard	霍梅古尔
+Hontanares	霍恩塔纳雷斯
+Iowa Class	伊瓦级
+JgdPanther	帕恩赫尔
+Juno Beach	尤诺贝
+King Tiger	基恩蒂格尔
+Krasnograd	克阿诺格勒
+Krummensee	克乌门塞
+Kunersdorf	库内尔多夫
+Lake Ilmen	拉克勒门
+Lama River	拉马河
+Les Etangs	勒塞塔恩
+Levkokhori	勒科克霍里
+Liebermann	利贝尔曼
+Lyakhovich	利克霍维
+Maidenhead	马登赫德
+Manchester	马恩赫斯特尔
+Manoilesti	马诺勒斯蒂
+Marder III	马尔德里
+Matilda II	马蒂勒达
+Mayakovsky	马科基
+McAllister	卡利斯特尔
+Mischelowo	米斯赫洛沃
+Mishchenko	米斯赫恩科
+Mittermann	米特尔曼
+Mjosa Lake	米约萨湖
+Monteforte	蒙泰福尔泰
+Muncheberg	穆恩赫贝格
+Neidenburg	内登堡
+Neunhoffen	嫩霍费恩
+Nikalskoje	尼卡勒科耶
+Nisalachti	尼萨拉蒂
+Nisiporeni	尼西波雷尼
+Oder River	奥德尔河
+Odon River	奥东河
+Oglethorpe	奥格勒特霍尔佩
+Orne River	奥尔内河
+Ouistreham	奥斯雷哈姆
+Phalsbourg	弗阿博尔
+Pola River	波拉河
+Poperinghe	波佩里恩赫
+Prut River	普乌河
+Pustovoyty	普斯托沃蒂
+Ratzwiller	拉特维勒尔
+Ruza River	鲁察河
+Rzhishchev	希斯赫
+Schirrheim	施伊海姆
+Schleithal	施埃塔尔
+Sele River	塞勒河
+Seregelyes	塞雷格利斯
+Sevastopol	塞瓦斯托波尔
+Sluiplivka	斯乌利卡
+Solnogorsk	索勒诺戈尔
+Sovetskaya	索韦特卡
+Spitfire I	施伊菲雷
+Spitfire V	施伊菲雷
+St Manvieu	圣曼维
+St. Venant	圣韦纳恩
+Stalingrad	斯大林格勒
+Strasbourg	施特阿博尔
+Strausberg	施特阿贝格
+Stuart III	施乌蒂
+Sutherland	苏特赫尔拉恩
+Tajo River	塔约河
+Tereshkova	特雷斯科瓦
+Thiaucourt	特伊科尔
+Thionville	特伊维尔
+Trostincts	特奥蒂恩
+Two Player	双人对战
+Valea Mare	瓦勒马雷
+Vali River	瓦利河
+Vasilevsky	瓦西勒基
+Vigneulles	维格内勒斯
+Vire River	维尔河
+Volkssturm	沃勒图尔
+Waldhausen	瓦勒豪森
+Washington	华盛顿
+Wasselonne	瓦塞洛内
+Wickingham	维基恩哈姆
+Wiedermann	维德尔曼
+Wildenguth	维勒登古特
+Wirbelwind	维尔贝勒维恩
+Wurfrahmen	伍尔拉门
+Youngblood	扬布拉德
+Yser River	伊塞尔河
+Zara Class	察拉级
+Zarubinsty	察鲁比恩蒂
+Zhirkovski	日伊科基
+Zoschnikov	佐斯尼科
+Ackenheil	阿肯海尔
+Altavilla	阿尔塔维拉
+Argecilla	阿尔格齐拉
+Armstrong	阿尔罗恩
+Arracourt	阿拉库尔
+Artillery	火炮
+Astakhova	阿斯塔克霍瓦
+Avalanche	阿瓦拉恩赫
+Baltimore	巴勒蒂莫雷
+Bar River	巴尔河
+Baronissi	巴罗尼西
+Belebzika	贝勒布齐卡
+Blackmore	布阿莫雷
+Bobenthal	博本塔尔
+Bogdanova	博格达诺瓦
+Bouxville	博斯维尔
+Camberley	卡姆贝尔勒
+Carpineni	卡尔皮内尼
+Carpiquet	卡尔皮库特
+Centurion	策恩图林
+Chasseurs	猎兵
+Chermakov	希埃马科
+Chernyshi	希埃尼斯希
+Ciechanow	切哈努夫
+Coalfield	科勒菲勒
+Conscript	科恩里普
+Cormelles	科尔梅勒斯
+Cotu Mori	科图莫里
+Coutances	库唐斯
+Danneberg	达内贝格
+Dickinson	迪基恩松
+Don River	东河
+Donaldson	多纳勒松
+Dunavecse	杜纳韦塞
+Eberhardt	埃贝尔哈尔
+Edgeworth	埃德格沃尔
+Eigermann	埃格尔曼
+Erberbach	埃尔贝尔巴赫
+Fedorchev	费多尔赫
+Feuermann	费尔曼
+Frankfurt	弗阿弗尔
+Gallagher	加拉格赫尔
+Gelucourt	格卢科尔
+Grigoriev	格伊戈里
+Hardwicke	哈尔维克
+Hasenfeld	哈森费尔德
+Hettstedt	黑特施泰特
+Humber II	胡姆贝里
+Humber IV	胡姆贝里
+Hurricane	胡里卡内
+Ingwiller	伊恩维勒尔
+Ivanskaya	伊瓦恩卡
+JagdTiger	雅格蒂格尔
+Jaropolac	雅罗波拉
+Kletskaya	克埃卡
+Knoxville	克奥维尔
+Kozarovka	科察罗卡
+Krakovsky	克阿科基
+Krupskaya	克乌卡
+Kuibishev	库比斯赫
+Kupasaari	库帕萨里
+Kurilovka	库里洛卡
+Kusmintsy	库斯米恩西
+Kvitinsky	维蒂恩基
+La Bassee	拉巴塞
+Le Chesne	勒赫斯内
+Ledrinhem	勒德林赫姆
+Leningrad	列宁格勒
+Loganesti	洛加内斯蒂
+Luchinsky	卢希恩基
+Luneville	卢内维尔
+Lys Canal	利斯卡纳勒
+Lys River	利斯河
+Malenkhov	马勒恩霍
+Mansurovo	曼苏罗沃
+Maryville	马里维尔
+Mavroneri	马罗内里
+Medvezhii	梅德韦茨希
+Melekhovo	梅勒克霍沃
+Merseburg	梅泽堡
+Montbronn	莫恩龙
+Montherme	莫恩赫尔梅
+Nehwitter	内维特尔
+Nemchinov	内姆希诺
+Niedzborz	尼德博尔
+Oak Ridge	奥克岭
+Offendorf	奥费恩多夫
+Oldenburg	奥勒登堡
+Orenkhova	奥雷恩霍瓦
+Osterwald	奥斯特尔瓦尔德
+Ottweiler	奥特韦勒尔
+Panther A	帕恩赫拉
+Panther D	帕恩赫尔
+Panther G	帕恩赫尔
+Patterson	帕特尔松
+Piedseltz	皮德塞勒
+Plotnikov	普奥尼科
+Poddor'ye	波多里
+Prokhazka	普奥哈茨卡
+Przasnysz	普阿尼斯
+Pusztavam	普斯塔瓦姆
+Ramishevo	拉米斯赫沃
+Rossovich	罗索维
+Rostovich	罗斯托维
+Sandhurst	萨恩胡尔
+Sarbogard	萨尔博加尔
+Schneider	施埃德尔
+Scout Car	科特卡尔
+Selishche	塞利斯赫
+Serafimov	塞拉菲莫
+Serrieres	塞里雷斯
+Sio Canal	西卡纳勒
+Spielmann	施伊曼
+St Aignan	圣阿格南
+St Privat	圣普伊瓦特
+Stakhanov	施阿哈诺
+Stassfurt	施塔斯富特
+Steinbach	滕巴赫
+Stepantsy	施埃帕恩西
+StuG IIIB	施乌吉布
+StuG IIIF	施乌吉弗
+StuG IIIG	施乌吉格
+Sudnikovo	苏德尼科沃
+Tar'ajevo	塔拉耶沃
+Temeleuti	特梅勒蒂
+Terachovo	特拉霍沃
+Thackeray	特阿克拉
+Transport	运输队
+Trautmann	特阿曼
+Trevieres	特雷维耶尔
+Varpolata	瓦尔波拉塔
+Vayaslava	瓦斯拉瓦
+Vendresse	韦恩雷塞
+Vorniceni	沃尔尼策尼
+Vorobjevo	沃罗布耶沃
+Voslensky	沃斯勒恩基
+Vyshinsky	维斯希恩基
+Weybridge	韦布里德格
+Wieczfnia	维尼
+Wisniewka	维斯尼卡
+Wolverine	沃勒韦里内
+Wormhoudt	沃尔霍德
+Yakoulevo	伊科勒沃
+Yaschniki	伊斯尼基
+Ylasommee	伊拉索梅
+Zaluch'ye	察卢希
+Zasstrowe	察斯罗韦
+Zitadelle	齐塔德勒
+la Basace	拉巴萨策
+Achilles	阿希勒斯
+Airfield	机场
+Alaminos	阿拉米诺斯
+Amfiklia	阿姆菲克利
+Andratti	阿恩拉蒂
+Aq Canal	阿卡纳勒
+Aq River	阿河
+Archilla	阿尔希拉
+Atalandi	阿塔兰迪
+Atkinson	阿特基恩松
+Avellino	阿韦利诺
+Bachmann	巴赫曼
+Balandin	巴兰迪恩
+Balleroy	巴勒罗
+Baracska	巴拉卡
+Baranova	巴拉诺瓦
+Barboeni	巴尔博尼
+Bastogne	巴斯托涅
+Belograd	贝洛格勒
+Bernburg	贝尔堡
+Billings	比利恩
+Bluffton	布乌顿
+Bobritsa	博布里特萨
+Bravicea	布阿维策
+Bridging	布伊吉恩
+Brihuega	布里韦加
+Brooklyn	布奥利恩
+Buchmann	布赫曼
+Bukharin	布克哈林
+Calarasi	卡拉拉西
+Campbell	卡姆贝勒
+Canadian	卡纳迪恩
+Carentan	卡朗坦
+Carlburg	卡尔堡
+Cauldron	卡勒龙
+Chambley	希阿勒
+Chertsey	希埃塞
+Ciopleni	齐普勒尼
+Climbach	利姆巴赫
+Commando	科曼多
+Conflans	科恩拉恩
+Contursi	孔图尔西
+Cornwall	科尔瓦勒
+Costesti	科斯特斯蒂
+Crawford	拉福尔
+Daryevka	达里卡
+Dmitriev	米特里
+Dombasie	多姆巴西
+Donchery	多恩赫里
+Donskaya	多恩卡
+Dubovsky	杜博基
+Eisleben	埃斯勒本
+Emirzyan	埃米尔齐恩
+Engineer	工兵
+Entemann	恩特曼
+Estaires	埃斯塔雷斯
+Farragut	法拉古特
+Ferguson	费尔古松
+Fetisova	费蒂索瓦
+Fielding	菲勒迪恩
+Flavigny	弗阿维格尼
+Fomichev	福米赫
+Franklin	弗阿林
+Frieling	弗伊利恩
+Galitsky	加利特基
+Gamsheim	加姆海姆
+Garrison	加里松
+Gavriluk	加里卢克
+Gehrmann	格曼
+Geissler	格斯勒尔
+Grushevo	格乌赫沃
+Haguenau	哈古纳
+Harribey	哈里贝
+Harriman	哈里曼
+Hausmann	哈斯曼
+Heinjoki	赫恩约基
+Herrmann	赫尔曼
+Hincesti	希恩策斯蒂
+Ilchenko	伊勒赫恩科
+Im Kabba	伊姆卡巴
+Infantry	步兵
+Ioloveni	伊洛韦尼
+Isztimer	伊斯蒂梅尔
+Jadraque	雅德拉库
+JgdPz IV	齐
+Juustila	尤斯蒂拉
+Juvelize	尤韦利策
+Kalmykov	卡勒米科
+Kaverino	卡韦里诺
+Kepplers	克普勒尔
+Khodorov	霍多罗
+Khurtora	胡尔托拉
+Kingston	基恩顿
+Kishinev	基斯希内
+Korowino	科罗维诺
+Kostrovo	科斯罗沃
+Kowalski	科瓦勒基
+Larionov	拉里诺
+Lazirtsy	拉齐尔西
+Leplyayo	勒普利
+Lisitsky	利西特基
+Louvigny	洛维格尼
+Maechich	马希
+Makedony	马克多尼
+Martinez	马尔蒂内茨
+Maslovka	马斯洛卡
+Matheson	马特赫松
+Me'ziers	梅齐尔
+Mellieha	梅利哈
+Mereseni	梅雷塞尼
+Merville	梅尔维尔
+Mezhrich	梅茨里
+Mikhoels	米克霍勒
+Miralrio	米拉勒里
+Morbache	莫尔巴赫
+Moskhori	莫斯霍里
+Mountain	山地
+Moyenvic	蒙维
+Mullrose	穆勒罗塞
+National	纳蒂纳勒
+Nemirovo	内米罗沃
+Niemeyer	尼梅尔
+Nikolaev	尼科拉
+Nimoreni	尼莫雷尼
+Nordwind	诺尔维恩
+Novgorod	诺戈罗德
+Nurnberg	努尔贝格
+O'Malley	奥马勒
+Obermann	奥贝尔曼
+Omicourt	奥米科尔
+Ostasova	奥斯塔索瓦
+Oststein	奥斯施泰因
+Peregino	佩雷吉诺
+Peterhof	佩特尔霍夫
+Peterson	佩特尔松
+Petrenko	佩特伦科
+Pfeiffer	普夫埃费尔
+Pfitzner	普夫伊内尔
+Piatakov	皮塔科
+Pillgram	皮勒拉姆
+Pioniere	皮尼雷
+Polgardi	波勒加尔迪
+Potaptsy	波塔普西
+Puschkin	普斯基恩
+Raczkeve	拉克韦
+Rainford	拉恩福尔
+Rehrbaon	雷班
+Rexpoede	雷斯波德
+Reynolds	雷诺勒
+Richards	里哈尔
+Robinson	罗比恩松
+Rossbach	罗斯巴赫
+Rothbach	罗特巴赫
+Rzhavets	哈韦特
+Sainteny	圣特尼
+Salmbach	萨勒巴赫
+Sauville	萨维尔
+Savannah	萨凡纳
+Scardino	卡尔迪诺
+Sedgwick	塞德维
+Sikorsky	西科尔基
+Sinyavka	西尼卡
+Sipoteni	西波特尼
+Smolensk	斯摩棱斯克
+Sorrento	索伦托
+Southall	索特哈勒
+St. Omer	圣奥梅尔
+Straseni	施特阿塞尼
+Strelnia	施特埃尼
+Stuart I	施乌蒂
+Sullivan	苏利瓦恩
+Surbourg	苏尔博尔
+Surorovo	苏罗罗沃
+Taracena	塔拉策纳
+Theissen	特埃森
+Thompson	特奥松
+Thornton	特奥顿
+Townsend	托塞恩
+Turgenev	图尔格内
+Tutorial	图托里勒
+Uxbridge	乌斯里德格
+Veszprem	韦斯雷姆
+Vilajoki	维拉约基
+Vladisov	拉迪索
+Vlaskovo	拉斯科沃
+Vouziers	沃齐尔
+Walbourg	瓦勒博尔
+Williams	威廉姆斯
+Wimmenau	维梅纳
+Woronino	沃罗尼诺
+Yiewsley	伊勒
+Yorktown	伊尔托
+Abostag	阿博斯塔格
+Amtissa	阿姆蒂萨
+Andrews	阿恩雷
+Antwerp	安特卫普
+Beeskow	贝斯科
+Belanov	贝拉诺
+Bergues	贝尔古斯
+Berhida	贝尔希达
+Berigny	贝里格尼
+Bethune	贝特胡内
+Blucher	布吕歇尔
+Brallos	布阿洛斯
+Bridges	布伊格斯
+Brigade	布伊加德
+Brodsky	布奥基
+Brunner	布伦纳
+Bucovat	布科瓦特
+Budafok	布达福克
+Cabourg	卡博尔
+Caestre	卡斯雷
+Cassino	卡西诺
+Caumont	卡蒙
+Cavalry	骑兵
+Charles	希阿勒斯
+Chemery	希埃梅里
+Chilova	希伊洛瓦
+Cismana	齐斯马纳
+Clinton	林顿
+Coelion	科林
+Cojusna	科尤斯纳
+Collins	科利恩
+Cossack	科萨
+Csakvar	萨克瓦尔
+Daimler	达姆勒尔
+Dambach	达姆巴赫
+Daniels	达尼勒
+Danilov	达尼洛
+Daubler	达布勒尔
+Dempsey	德姆塞
+Dietzel	迪特策勒
+Doherty	多赫尔蒂
+Douglas	多格拉斯
+Dunkirk	敦刻尔克
+Edwards	埃德瓦尔
+Egorova	埃戈罗瓦
+El Adem	埃拉德姆
+El Aden	埃拉登
+Elefant	埃勒法恩
+Elverum	埃勒韦鲁姆
+Emerson	埃梅尔松
+Erdmann	埃尔曼
+Ermakov	埃尔马科
+Factory	工厂
+Fairfax	法尔法斯
+Federov	费德罗
+Fighter	战斗机
+Filatov	菲拉托
+Filipov	菲利波
+Firefly	菲雷弗利
+Fischer	菲斯赫尔
+Forster	福尔特尔
+Fresnes	弗埃内斯
+Fronmuh	龙穆
+Gagarin	加加林
+Glushko	格乌科
+Golovko	戈洛科
+Gruener	格乌内尔
+Gryzlov	格伊洛
+Hawkins	哈基恩
+Higgins	希吉恩
+Holbach	霍勒巴赫
+Jackson	雅松
+Jednevo	耶德内沃
+Jenkins	耶恩基恩
+Johnson	约松
+Jurceni	尤尔策尼
+Kampfer	卡姆费尔
+Karasev	卡拉塞
+Kendall	肯达勒
+Kharkov	哈尔科夫
+Korolev	科罗勒
+Kosinzy	科辛齐
+Kroegel	克奥格勒
+Krueger	克乌格尔
+Kustrin	库斯林
+Lagarde	拉加尔德
+Lawford	拉福尔
+Leipzig	莱比锡
+Lembach	勒姆巴赫
+Lemberg	勒姆贝格
+Lestrem	勒斯雷姆
+Leuseni	勒塞尼
+Levadia	勒瓦迪
+Lindner	利恩内尔
+Lindsay	利恩萨
+Lovejoy	洛韦约
+Lysenko	利森科
+MacLean	马伦
+Manigny	马尼尼
+Marconi	马尔科尼
+Mardick	马尔迪
+Maresal	马雷萨勒
+Masaryk	马萨里克
+McBride	里德
+McCloud	洛德
+Milesti	米勒斯蒂
+Militia	米利蒂
+Millery	米勒里
+Mironov	米罗诺
+Morozov	莫罗佐
+Mueller	穆勒尔
+Nashorn	纳斯霍尔
+Nastolo	纳斯托洛
+Neptune	内普图内
+Neumann	内曼
+Nichols	尼霍勒
+Nikitin	尼基廷
+O'Neill	奥内勒
+Oliveto	奥利韦托
+Ommeray	奥梅拉
+Ostwind	奥斯维恩
+Paestum	帕埃斯图姆
+Parfino	帕尔菲诺
+Pavelic	帕韦利
+Periers	佩里耶
+Persano	佩尔萨诺
+Petrova	佩特罗瓦
+Players	玩家数
+Portail	波尔塔伊
+Preston	普埃顿
+Pringle	普伊勒
+Protzel	普奥策勒
+Pulkowo	普勒科沃
+Pullman	普勒曼
+Punjabi	普恩雅比
+Pz IIIE	齐
+Pz IIIG	齐格
+Pz IIIH	齐
+Pz IIIJ	齐
+Pz IIIL	齐勒
+Pz IIIN	齐恩
+PzJgd I	迪
+Raciula	拉齐拉
+Regular	正规军
+Remilly	雷米利
+Reschki	雷斯基
+Richter	里特尔
+Rimling	里姆利恩
+Rimogne	里莫格内
+Roberts	罗贝尔
+Ropscha	罗普哈
+Rossava	罗萨瓦
+Rutlege	鲁特勒格
+Rutskoi	鲁特科
+Salerno	萨莱诺
+Sanders	桑德尔
+Sapogne	萨波格内
+Saverne	萨韦尔内
+Schmidt	施伊
+Schuler	施乌勒尔
+Schultz	施乌
+Semenov	塞梅诺
+Shamnos	什阿诺斯
+Shandra	什阿拉
+Simpson	西姆松
+Singera	辛格拉
+Smirnov	米尔诺
+Solofra	索洛弗拉
+Staines	施阿内斯
+Stearns	施埃
+Stevens	施埃韦恩
+Stewart	施埃瓦尔
+Stillis	施伊利斯
+Strauss	施特阿
+Suffolk	苏福勒
+Sunbury	松布里
+Sutniki	苏特尼基
+Svetlov	韦特洛
+Tempest	特姆佩斯
+Tirpitz	蒂尔皮特
+Tulitsy	图利特西
+Typhoon	蒂普霍恩
+Ungheni	乌恩赫尼
+Vallena	瓦勒纳
+Vickers	维克尔
+Victory	胜利
+Viipuri	维堡
+Village	村庄
+Wallace	华莱士
+Windsor	温莎
+Zeitjun	策特尤恩
+Zielona	齐洛纳
+Zuromin	祖罗明
+Zurrieq	祖里
+Aachen	亚琛
+Acerno	阿切尔诺
+Acroma	阿克鲁马
+Akladi	阿克拉迪
+Alcock	阿勒科
+Algora	阿勒戈拉
+Alpini	阿勒皮尼
+Aquila	阿库拉
+Arneke	阿尔内克
+Arnhem	阿纳姆
+Ashton	阿斯顿
+Aurith	阿里特
+Avenay	阿韦纳
+Balyka	巴利卡
+Baupte	博普特
+Bayeux	巴约
+Berlin	柏林
+Bernau	贝尔纳
+Bishop	比斯霍普
+Bitche	比特赫
+Bomber	轰炸机
+Brecht	布雷希特
+Bridge	桥梁
+Buchak	布哈克
+Bulson	布勒松
+Butler	布特勒尔
+Carson	卡尔松
+Carter	卡尔特尔
+Cassel	卡塞勒
+Chagny	希阿尼
+Chekov	希埃科
+Cioara	齐拉
+Conroe	科恩罗
+Cooper	科佩尔
+Cramer	克拉默
+Creutz	克罗伊茨
+Curtis	库尔蒂斯
+Davies	达维斯
+Decker	德克尔
+Defeat	失败
+Delphi	德勒希
+Desert	沙漠
+Dessau	德绍
+Devlin	德林
+Dieuze	迪策
+Domsod	多姆索德
+Dorner	多尔内尔
+Dubari	杜巴里
+Dunbar	敦巴尔
+Edison	埃迪松
+Elliot	埃利特
+Enying	埃尼恩
+Esquay	埃斯库
+Farris	法里斯
+Fenton	费恩顿
+Finlay	菲恩拉
+Forest	森林
+Fowler	福勒尔
+Frolov	弗奥洛
+Fuller	弗勒尔
+Furnes	弗尔内斯
+Garcia	加尔齐
+Garzin	加尔齐恩
+Ghurka	胡尔卡
+Gjevik	耶维克
+Gorban	戈尔班
+Gordon	戈尔东
+Graham	格阿哈姆
+Gravia	格阿维
+Greene	格埃内
+Gruber	格乌贝尔
+Guards	古尔
+Hamrun	哈姆伦
+Harris	哈里斯
+Hatten	哈滕
+Hauser	哈塞尔
+Hetzer	赫特策尔
+Hilger	希勒格尔
+Hinges	希恩格斯
+Hipper	希佩尔
+Howard	霍瓦尔
+Hummel	胡梅勒
+Hunter	胡恩特尔
+Indian	因迪恩
+Inmann	因曼
+Isigny	伊西尼
+Ivanov	伊瓦诺
+Jaeger	雅格尔
+Jamuga	雅穆加
+Jensen	耶恩森
+Jonval	约恩瓦勒
+Jungen	尤恩根
+Kalina	卡利纳
+Keller	克勒尔
+Kelley	克勒
+Kimble	基姆勒
+Kothen	科特赫恩
+Kovali	科瓦利
+Lavola	拉沃拉
+Lessay	莱塞
+London	伦敦
+Longos	隆戈斯
+Loudon	洛东
+Ludlow	卢德洛
+Mahler	马勒尔
+Maiori	马约里
+Malone	马洛内
+Marine	马里内
+Martin	马尔廷
+Mascot	马斯科特
+Mauers	马尔
+Messer	梅塞尔
+Miller	米勒尔
+Mingir	明吉尔
+Moscow	莫斯科
+Mouzon	莫佐恩
+Murphy	穆尔希
+Naples	那不勒斯
+Nelson	内勒松
+Nevsky	内基
+Newman	内曼
+Nocera	诺切拉
+Norman	诺尔曼
+Norris	诺里斯
+Nubian	努比恩
+Numeny	努梅尼
+Onesti	奥内斯蒂
+Osborn	奥斯博尔
+Pahner	帕内尔
+Palmer	帕勒梅尔
+Parker	帕尔克尔
+Pausch	帕斯
+Pearse	佩尔塞
+Pekari	佩卡里
+Pogani	波加尼
+Pompei	庞贝
+Pooler	波勒尔
+Popovo	波波沃
+Porter	波尔特尔
+Powell	波韦勒
+Pronin	普奥宁
+Puberg	普贝格
+Pz IIA	齐
+Pz IIF	齐弗
+Pz IVC	齐
+Pz IVD	齐
+Pz IVG	齐
+Pz IVH	齐
+Pz IVJ	齐
+Radeni	拉德尼
+Ramsey	拉姆塞
+Ranger	拉恩格尔
+Reilly	雷利
+Renvez	伦韦茨
+Rethel	雷特赫勒
+Reuter	雷特尔
+Rieger	里格尔
+Rincon	林科恩
+Ritter	里特尔
+Robecq	罗贝
+Rogers	罗格尔
+Rostov	罗斯托夫
+Rutger	鲁特格尔
+Sagvar	萨格瓦尔
+Seelow	塞洛
+Sexton	塞斯顿
+Sharpe	什阿佩
+Shimsk	什伊
+Sicily	西西里
+Sijuwi	西尤维
+Singly	西恩利
+Skreia	雷
+Sliema	斯伊马
+Slough	斯奥
+Smycka	米卡
+Smythe	米特赫
+Soldau	索勒达
+Somali	索马利
+Soskut	索斯库特
+St. Lo	圣洛
+Stanly	坦利
+Stonne	施奥内
+Supply	补给
+Tannay	塔纳
+Taylor	塔洛尔
+Thaler	特阿勒尔
+Thomas	特奥马斯
+Tobruk	托布鲁克
+Tomsky	托姆基
+Torija	托里雅
+Trevor	特埃沃尔
+Troarn	特奥
+Tucker	图克尔
+Turner	图尔内尔
+Ulanov	乌拉诺
+Ulrich	乌勒里
+Updike	乌普迪克
+Vernon	韦尔农
+Verson	韦尔松
+Vietri	维耶特里
+Vigrom	维格罗姆
+Vimont	维蒙
+Vlasov	拉索
+Vysock	维索
+Vzvatl	瓦特
+Walker	瓦勒克尔
+Warsaw	华沙
+Watson	瓦特松
+Watten	瓦滕
+Weasel	韦塞勒
+Weiler	韦勒尔
+Wilcox	威尔科克斯
+Wingen	维恩根
+Witino	维蒂诺
+Woerth	沃尔
+Woking	沃基恩
+Yakhny	伊克尼
+Zabbar	察巴尔
+Zebbuj	策布
+Zenbok	策恩博克
+Zerbst	策尔
+Zesner	策斯内尔
+Zhikov	日伊科
+Zimmer	齐梅尔
+Zorbig	佐尔比格
+sIG IB	西吉布
+sIG II	西吉
+Abbot	阿博特
+Adams	阿达姆
+Adand	阿达恩
+Adler	阿德勒
+Adony	阿多尼
+Airel	艾雷勒
+Alcoa	阿勒科
+Allen	阿伦
+Anzio	安齐奥
+Armor	装甲兵
+Arndt	阿恩特
+Balck	巴尔克
+Barby	巴尔比
+Basly	巴斯利
+Bauer	鲍尔
+Beach	滩头
+Berry	贝里
+Black	布阿
+Blake	布阿克
+Boise	博塞
+Braun	布劳恩
+Briey	布伊
+Brown	布奥
+Bully	布利
+Bures	布雷斯
+Byrne	比尔内
+Cency	策恩齐
+Chase	希阿塞
+Clark	拉尔
+Comet	科梅特
+Cooke	科克
+Cosby	科斯比
+Davis	达维斯
+Doyle	多勒
+Eaton	埃顿
+Eboli	埃博利
+Egham	埃格哈姆
+Etain	埃坦
+Etyek	埃蒂克
+Evans	埃瓦恩
+Finch	菲恩
+Flize	弗伊策
+Gabel	加贝勒
+Goetz	戈特
+Gomez	戈梅茨
+Grant	格阿
+Gries	格伊
+Guzev	古策
+Haida	哈达
+Halle	哈雷
+Hamar	哈马尔
+Hardy	哈尔迪
+Hatch	哈特
+Hayes	哈斯
+Hills	丘陵
+Huron	胡龙
+Ilino	伊利诺
+Irwin	伊尔维恩
+Janow	雅诺
+Jones	约内斯
+Kanev	卡内
+Kirke	基尔克
+Kirov	基罗
+Kozin	科齐恩
+Kursk	库尔斯克
+Kurtz	库尔
+Lamia	拉米
+Lewis	勒维斯
+Lezey	勒策
+Liart	利尔
+Locke	洛克
+Lorey	洛雷
+Losch	洛斯
+MK VI	维
+Malmy	马勒米
+Malta	马勒塔
+Marfa	马尔法
+Meyer	梅尔
+Mills	米勒
+Milos	米洛斯
+Minsk	明斯克
+Mlawa	拉瓦
+Model	莫德勒
+Molos	莫洛斯
+Musta	穆斯塔
+Nagel	纳格勒
+Nancy	南锡
+Oakes	奥克斯
+Olson	奥勒松
+Omont	奥莫恩
+Paris	巴黎
+Perry	佩里
+Poole	波勒
+Popov	波波
+Potok	波托克
+Puras	普拉斯
+Pz IA	齐
+Pz IB	齐布
+Quick	库
+Quinn	库恩
+Raate	拉特
+Rasch	拉斯
+Recea	雷策
+Recon	侦察兵
+Ridge	山岭
+River	河流
+Rodos	罗多斯
+Rykov	里科
+Savin	萨维恩
+Sedan	色当
+Seltz	塞勒
+Sissi	山地兵
+Skoda	科达
+Sluzk	斯乌
+Smith	米特
+Spass	施阿
+St Lo	圣洛
+Stone	施奥内
+Swamp	沼泽
+Tatra	塔特拉
+Tiger	蒂格尔
+Truck	卡车
+Turns	回合数
+Urizk	乌里茨
+Valot	瓦洛特
+Wagon	辎重车
+Waite	瓦特
+Weiss	韦斯
+Wespe	韦斯佩
+Wesse	韦塞
+White	希特
+Wolfe	沃勒费
+Woods	伍兹
+Xures	克乌雷斯
+Yazov	伊佐
+Yoncq	伊恩
+Young	伊恩
+Zorin	佐林
+Aire	阿雷
+Ajax	阿雅斯
+Bell	贝勒
+Biri	比里
+Boyd	博德
+Bray	布阿
+Buda	布达
+Caen	卡昂
+City	城市
+Dunn	敦
+Ford	福尔
+Gold	戈勒
+Gray	格阿
+Hart	哈尔
+Iowa	伊瓦
+Kapp	卡普
+Kehl	克
+Kent	克恩
+Kiev	基辅
+King	基恩
+Klin	林
+Knox	克奥
+Koch	科
+Lake	湖泊
+Lane	拉内
+Lang	拉恩
+Long	洛恩
+Luga	卢加
+Maus	马斯
+Metz	梅斯
+Nash	纳斯
+Nola	诺拉
+Oiti	奥蒂
+Owen	奥韦恩
+Pest	佩斯
+Pola	波拉
+Port	港口
+Rata	拉塔
+Reed	雷德
+Rena	雷纳
+Road	道路
+Rome	罗马
+Ross	罗斯
+Rott	罗特
+Safi	萨菲
+Shaw	什阿
+Sikh	西克
+Soex	索斯
+Solt	索勒
+Town	城镇
+Volz	沃勒
+West	韦斯特
+Zulu	祖卢
+Aba	阿巴
+Ano	阿诺
+Lee	勒
+Ley	勒
+Mor	莫尔
+Pil	皮勒
+Ski	滑雪兵
+TKS	特

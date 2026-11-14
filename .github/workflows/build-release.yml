@@ -7,11 +7,9 @@ name: build-release
 #   PanzerGeneral2-CHS-{date}-{time}.zip
 #
 # 触发：
-#   push(main/master/rebuild)  —— 编译 ASI + 装配 zip + 校验 + 上传 Artifact；
-#                                随后 publish job 在**同一 run** 内按日期-时间打 tag
-#                                并发 Release（ASCII 附件名，内容仍为中文名 zip）。
-#   pull_request          —— 构建 + 校验（门禁，不发布）
-#   workflow_dispatch     —— 手动；可勾选跳过 DLL 编译（--skip-dll）
+#   workflow_dispatch     —— 唯一入口，需人工在 Actions 页点「Run workflow」。
+#   ★ 暂不启用自动构建：发布包由维护者本地 build_release.py 装配后手动上传 Release。
+#   需要恢复自动构建时，把下面 on: 里的 push / pull_request 段加回来即可。
 #
 # ★ 架构：windows-latest 不带 v141（MSVC 14.16），故复用参考项目（MajestyIIExtend /
 #   SR_GAME_CHINESE）的 msvc-wine 方案：用官方 manifest 从微软 CDN 拉 VC 14.16 +
@@ -22,20 +20,7 @@ name: build-release
 # ============================================================================
 
 on:
-  push:
-    branches: [main, master, rebuild]
-    paths-ignore:
-      - '**.md'
-      - 'Documents/**'
-      - 'archives/**'
-      - '.workbuddy/**'
-  pull_request:
-    branches: [main, master, rebuild]
-    paths-ignore:
-      - '**.md'
-      - 'Documents/**'
-      - 'archives/**'
-      - '.workbuddy/**'
+  # 仅手动触发，避免 push 时自动编译 / 自动发 Release
   workflow_dispatch:
     inputs:
       skip_dll:
