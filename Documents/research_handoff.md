@@ -15,7 +15,7 @@
 - **目标程序**：仅 `PG2UK220.EXE`（GOG 主程序）。
 - **可动用手段**：IDA Pro + `ida-pro-mcp`（已验证可连，会话 `210d14e8`，Hex-Rays 就绪）。
 - **汉化总策略**：ASI/DLL 注入（`winmm.dll` 代理，已确认游戏真 import winmm，见 §1.2）。
-- **已搭工程**：`G:/Projects/PanzerGeneral2CHS`（LICENSE / CI / 资源打包 同作者三项目模式）。
+- **已搭工程**：`本仓库根目录`（LICENSE / CI / 资源打包 同作者三项目模式）。
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### 1.1 程序本体 / PE 结构
 - `PG2UK220.EXE`，PE32，6 个节：`.text` / `.rdata` / `.data` / `.idata` / `.rsrc` / `.reloc`。
-- 二进制泄露源路径：`C:\pz97\main\Src\Text.c`、`C:\pz97\main\Src\Loadmap.c` → 内部代号 `pz97`。
+- 二进制泄露源路径：`main/Src/Text.c`、`main/Src/Loadmap.c`（原工程相对路径） → 内部代号 `pz97`。
 
 ### 1.2 导入表（IDA 实读，已确认代理 DLL 目标）
 游戏确实 import 了 **`WINMM`**（11 个函数），这是 ASI 代理方案成立的关键：
@@ -406,9 +406,9 @@ PanzerGeneral2CHS/
 ---
 
 ## 7. 参考项目（同作者，可复用其模式）
-- `G:/Projects/ArmyMenCHS` —— 多代玩具兵大战，ASI/内存补丁，三段式 CI。
-- `G:/Projects/MajestyIIExtend` —— Majesty2，ASI + 字体烘焙(DDS) + texts.zip，msvc-wine CI。
-- `G:/Projects/SR_GAME_CHINESE` —— 黑道圣徒，ASI + `stb_truetype` 现场生成字形 + `le_string` 替换。
+- `ArmyMenCHS` —— 多代玩具兵大战，ASI/内存补丁，三段式 CI。
+- `MajestyIIExtend` —— Majesty2，ASI + 字体烘焙(DDS) + texts.zip，msvc-wine CI。
+- `SR_GAME_CHINESE` —— 黑道圣徒，ASI + `stb_truetype` 现场生成字形 + `le_string` 替换。
   （SR 项目的「GDI/ttf 取字形 → 写缓冲」思路与本作 §3.1 最接近，可重点参考其 DLL 实现。）
 
 > 本仓库的 LICENSE / 工作流 / 资源打包 CI 思路取自上述三者；CJK 字形合成可借鉴 SR 的 stb_truetype 路线。

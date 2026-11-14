@@ -43,7 +43,7 @@
 
 ### 开发者：构建
 ```bash
-cd G:\Projects\PanzerGeneral2CHS
+cd PanzerGeneral2CHS
 
 # 1) 编译 ASI（MSVC 2017 v141 x86，与参考项目同款配方）
 python Tools\ci\build_dll_local.py
