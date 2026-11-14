@@ -45,19 +45,32 @@
 ```bash
 cd PanzerGeneral2CHS
 
-# 1) 编译 ASI（MSVC 2017 v141 x86，与参考项目同款配方）
-python Tools\ci\build_dll_local.py
+# 1) 编译 ASI（本机 VS2017 v141 x86；CI 用 runner 自带 MSVC x86）
+python Tools/ci/build_dll_local.py
 
 # 2) 装配发布包（Resources/CHS + dist → build_out/PanzerGeneral2-CHS-*.zip）
-python Tools\ci\build_release.py --out-root build_out
+python Tools/ci/build_release.py --out-root build_out
 
-# 3) 校验发布包结构
-python Tools\ci\verify_release.py build_out
+# 3) 校验发布包结构（CI 另加 --require-asi 硬门禁）
+python Tools/ci/verify_release.py build_out
 ```
 
-CI 工作流保留在 `.github/workflows/build-release.yml`，但**当前不启用自动构建**：
-仅支持在 Actions 页手动 `workflow_dispatch` 触发。发布包由维护者本地执行
-`Tools/ci/build_release.py` 装配后，**手动上传到 Release**。
+### CI（GitHub Actions）
+
+`.github/workflows/build-release.yml` 在 **push 到 `master` / `dev`、PR 到 `master`**
+时自动构建：`windows-latest` 上用 MSVC x86 编译 32 位 `PG2CHS_DLL.asi` →
+装配 zip → 结构校验 → 上传 Actions Artifact（保留 30 天）。
+
+也可以在 Actions 页手动 `workflow_dispatch`：
+
+| 输入 | 作用 |
+|---|---|
+| `publish` | 勾选后才额外创建 GitHub Release；默认**不自动发版** |
+| `skip_dll` | 跳过编译，只打包文本资源（排查用） |
+
+CI 用 runner 自带的 MSVC（v143）直接 `cl` 编译，产物仍是 PE32；本机开发用
+VS2017 v141。`verify_release.py --require-asi` 会在 ASI 缺失或不是 32 位 PE 时
+让构建失败，避免「编译挂了却静默产出纯文本包」。
 
 ---
 
@@ -118,6 +131,6 @@ CI 工作流保留在 `.github/workflows/build-release.yml`，但**当前不启�
 ## 环境依赖
 
 - **Python 3**（+ 后续字体/文本工具链）
-- **Visual Studio 2017（MSVC 14.16 / v141）** + **Windows SDK 10.0.26100.0**（与参考项目同款，
-  保证 msvc-wine CI 与本地一致）
+- **Visual Studio 2017（MSVC 14.16 / v141）** + **Windows SDK 10.0.26100.0**（本机开发用；
+  CI 无需此组合，直接用 runner 自带的 MSVC x86）
 - 可选：**IDA Pro + ida-pro-mcp**（用于逆向渲染路径与字符串交叉引用）
