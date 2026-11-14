@@ -59,12 +59,14 @@ static struct Cfg {
                                    // true =GGO_GRAY8 灰度 + 阈值（大字号更平滑）
     bool  debug            = false;// 是否写详细日志
     bool  dumpFrame        = false;// 首次画 CJK 时把整个表面 dump 成 PG2CHS_frame.pgm（排查用）
+    bool  selfTest         = false;// 首次绘制时在画面上画一段中文测试换行渲染（排查用）
 } g_cfg;
 
 // ===================== 关键地址（VA，ImageBase = 0x400000） =================
 static const char* TARGET_EXE      = "PG2UK220.EXE";
 static const DWORD IMAGE_BASE      = 0x400000;
 static const DWORD ADDR_DRAWTEXT   = 0x43B2C2;  // 绘制文字
+static const DWORD ADDR_WRAPDRAW   = 0x43B402;  // 自动换行绘制（剧本简报/帮助）
 static const DWORD ADDR_MEASURE    = 0x43B7C4;  // 测量文字宽度
 static const DWORD ADDR_CHARWIDTH  = 0x4287F3;  // 字符宽度查表
 static const DWORD ADDR_BLIT       = 0x428813;  // 单字形 blit（兜底闸门）
@@ -93,6 +95,9 @@ struct SurfaceHeader {          // *H
 typedef int   (__cdecl* OrigDrawTextFn)(int x, int y, const unsigned char* colorTable,
                                         const char* text, void* surface);
 typedef short (__cdecl* OrigMeasureFn)(const char* text);
+// 自动换行绘制：maxLines 限制行数，flag 非 0 时末尾补 '|' 表示还有更多内容
+typedef short (__cdecl* OrigWrapFn)(short maxLines, const unsigned char* colorTable,
+                                    const char* text, void* surface, char flag);
 typedef int   (__cdecl* CharWidthFn)(DWORD fontObj, int ch);
 typedef int   (__cdecl* BlitFn)(DrawSurface* surface, int x, int y, DWORD fontObj,
                                 int glyphIdx, const unsigned char* colorTable);
@@ -101,6 +106,7 @@ typedef void  (__cdecl* UnlockFn)(void);
 
 static OrigDrawTextFn g_origDrawText = nullptr;
 static OrigMeasureFn  g_origMeasure  = nullptr;
+static OrigWrapFn     g_origWrap     = nullptr;
 static CharWidthFn    g_charWidth    = nullptr;
 static BlitFn         g_origBlit     = nullptr;
 static LockFn         g_lockFn       = nullptr;
@@ -137,6 +143,90 @@ static void Log(const char* fmt, ...)
     fflush(g_log);
 }
 
+// ===================== 文本索引表修复 =======================================
+// 内存取证结论（英文/中文两次运行对比）：
+//   游戏把 GUI97.TXT 读进内存时逐字节过滤，遇到「字体里没有的字节」就写 0，
+//   于是一行中文被切成好几段，表项数量变多；
+//   而 UI 取串用的索引来自数据记录（36 字节记录 +0x0C 的 16 位序号），
+//   是按英文原版「第 k 项 = 第 k+1 行」编好的 —— 索引整体后移 → 按钮串词。
+// 对策：把这张固定 432 项的表直接换成本文件「第 k+1 行」的原始 GBK 串。
+static const DWORD ADDR_TEXTTABLE  = 0x4EFEC0;  // char* g_text[432]
+static const int   TEXTTABLE_COUNT = 432;       // 表长（实测 0x4EFEC0..0x4F0580）
+
+static char* g_tblPtr[TEXTTABLE_COUNT] = { nullptr };
+static char* g_tblPool = nullptr;
+static bool  g_tblTried = false;
+
+// 读 GUI97.TXT，按 CRLF 切行，全部放进一块池子（游戏不会释放这些指针）
+static bool BuildTextPool()
+{
+    if (g_tblTried) return g_tblPool != nullptr;
+    g_tblTried = true;
+
+    wchar_t path[MAX_PATH * 2];
+    wcscpy_s(path, g_baseDir); wcscat_s(path, L"GUI97.TXT");
+    FILE* fp = _wfopen(path, L"rb");
+    if (!fp) {
+        wcscpy_s(path, g_baseDir); wcscat_s(path, L"..\\GUI97.TXT");
+        fp = _wfopen(path, L"rb");
+    }
+    if (!fp) { Log("texttable: 找不到 GUI97.TXT\n"); return false; }
+
+    fseek(fp, 0, SEEK_END);
+    long sz = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (sz <= 0 || sz > (1 << 20)) { fclose(fp); return false; }
+
+    std::vector<char> raw((size_t)sz);
+    size_t got = fread(raw.data(), 1, (size_t)sz, fp);
+    fclose(fp);
+    if (got < 8) return false;
+
+    g_tblPool = (char*)HeapAlloc(GetProcessHeap(), 0, got + TEXTTABLE_COUNT + 8);
+    if (!g_tblPool) return false;
+
+    const char* p = raw.data();
+    const char* end = raw.data() + got;
+    char* w = g_tblPool;
+    int n = 0;
+    while (p < end && n < TEXTTABLE_COUNT) {
+        const char* q = p;
+        while (q < end && *q != '\r' && *q != '\n') ++q;
+        int len = (int)(q - p);
+        memcpy(w, p, (size_t)len);
+        w[len] = 0;
+        g_tblPtr[n++] = w;
+        w += len + 1;
+        while (q < end && (*q == '\r' || *q == '\n')) ++q;
+        p = q;
+    }
+    Log("texttable: 读入 %d 行\n", n);
+    return n > 0;
+}
+
+// 每次绘制前调用：只有发现表被别人重写时才动手（正常情况下一次比较就返回）
+static void PatchTextTable()
+{
+    HMODULE h = GetModuleHandleA(TARGET_EXE);
+    if (!h) return;
+    char** tbl = (char**)((BYTE*)h + (ADDR_TEXTTABLE - IMAGE_BASE));
+
+    if (g_tblPool && tbl[0] == g_tblPtr[0]) return;   // 已是我们的表
+    if (!BuildTextPool()) return;
+
+    int changed = 0;
+    for (int i = 0; i < TEXTTABLE_COUNT; ++i) {
+        // 只替换「游戏自己已经填过」的项：表的空位有语义（迭代到 NULL 结束），
+        // 全填满会让上层遍历跑出预期范围，表现为菜单整个不出来。
+        if (tbl[i] && g_tblPtr[i] && tbl[i] != g_tblPtr[i]) { tbl[i] = g_tblPtr[i]; ++changed; }
+    }
+    static int logged = 0;
+    if (changed && logged < 3) {
+        Log("texttable: 换掉 %d 项；#156=%s\n", changed, g_tblPtr[156] ? g_tblPtr[156] : "(null)");
+        ++logged;
+    }
+}
+
 // 读同目录 PG2CHS.ini
 static void LoadConfig(const wchar_t* dllPath)
 {
@@ -156,6 +246,7 @@ static void LoadConfig(const wchar_t* dllPath)
     g_cfg.antiAlias  = GetPrivateProfileIntW(L"PG2CHS", L"AntiAlias",  g_cfg.antiAlias ? 1 : 0, iniPath) != 0;
     g_cfg.debug      = GetPrivateProfileIntW(L"PG2CHS", L"Debug",      g_cfg.debug ? 1 : 0, iniPath) != 0;
     g_cfg.dumpFrame  = GetPrivateProfileIntW(L"PG2CHS", L"DumpFrame",  g_cfg.dumpFrame ? 1 : 0, iniPath) != 0;
+    g_cfg.selfTest   = GetPrivateProfileIntW(L"PG2CHS", L"SelfTest",   g_cfg.selfTest  ? 1 : 0, iniPath) != 0;
     if (g_cfg.threshold < 1)   g_cfg.threshold = 1;
     if (g_cfg.threshold > 254) g_cfg.threshold = 254;
 }
@@ -326,11 +417,11 @@ static int DrawGlyph(WCHAR wc, int penX, int baselineY, BYTE ink,
 
 // 首次画 CJK 时把整个表面 dump 成 PGM（8 位调色板索引直接当灰度看）。
 // 用于「屏幕上看不到文字」时确认像素到底写没写、写在哪个坐标。
+static bool g_wantDump = false;   // HookDrawText 指定「这次画完存一张」
 static void DumpSurfaceOnce(const BYTE* px, int pitch, int h)
 {
-    static bool done = false;
-    if (done || !g_cfg.dumpFrame || !px || pitch <= 0 || h <= 0) return;
-    done = true;
+    if (!g_wantDump || !g_cfg.dumpFrame || !px || pitch <= 0 || h <= 0) return;
+    g_wantDump = false;
     wchar_t p[MAX_PATH];
     wcscpy_s(p, g_baseDir); wcscat_s(p, L"PG2CHS_frame.pgm");
     FILE* f = _wfopen(p, L"wb");
@@ -419,6 +510,145 @@ static int RenderStringCJK(int x, int y, const unsigned char* colorTable,
         ++g_dbgDrawLog;
     }
     return lines;   // 原函数返回换行计数（单行串为 0）
+}
+
+// =====================================================================
+// 自动换行绘制的中文版（0x43B402）。
+// 原函数逐「有符号字节」处理：GBK 高位字节被 __isctype 判成不可打印 →
+// 既不绘制、也不参与断行，整段中文变成空白。这里保留原来的
+// Lock / 裁剪 / 行距 / maxLines 语义，只把字符单位换成 GBK 字符：
+//   · CJK 可在任意两字之间断行（宽度 = 全宽）
+//   · ASCII 仍按空格整词断行，避免把单词劈开
+// =====================================================================
+static short WrapDrawCJK(short maxLines, const unsigned char* colorTable,
+                         const char* text, void* surface, char flag)
+{
+    static int dbgWrap = 0;
+    if (!EnsureFont()) return 0;
+
+    DrawSurface* ds = (DrawSurface*)surface;
+    if (!ds || !ds->H) return 0;
+    SurfaceHeader* H = (SurfaceHeader*)ds->H;
+    if (!H || !H->pixels) return 0;
+
+    BYTE ink = 0xE3;
+    if (colorTable) { BYTE c = colorTable[0]; if (c != 0xFF) ink = c; }
+
+    bool weLocked = false;
+    if (g_lockFn && g_pLockFlag && !*g_pLockFlag) {
+        if (!g_lockFn()) return 0;
+        weLocked = true;
+    }
+
+    BYTE* pixels = (BYTE*)H->pixels;
+    int   pitch  = H->pitchMinus1 + 1;
+    int   surfH  = H->heightMinus1 + 1;
+    if (pitch <= 0 || surfH <= 0) { if (weLocked && g_unlockFn) g_unlockFn(); return 0; }
+
+    int minX = ds->clipX > 0 ? ds->clipX : 0;
+    int minY = ds->clipY > 0 ? ds->clipY : 0;
+    int maxX = (ds->maxX < pitch - 1) ? ds->maxX : pitch - 1;
+    int maxY = (ds->maxY < surfH - 1) ? ds->maxY : surfH - 1;
+
+    // 可用区域：与原函数同算法（右/下边界是闭区间，故 +1）
+    int maxW = ds->maxX - ds->clipX + 1;
+    int maxH = ds->maxY - ds->clipY + 1;
+    if (maxW <= 0 || maxH <= 0) { if (weLocked && g_unlockFn) g_unlockFn(); return 0; }
+
+    // 行距：游戏基准是「字形高+2」，CJK 字号更大时必须撑到自身高度
+    int glyphH = g_pxHeight > 0 ? g_pxHeight : 8;
+    int lineH  = (g_lineH > 0 ? g_lineH : 8) + 2;
+    if (lineH < glyphH) lineH = glyphH;
+    // 行数多到放不下时压一压行距，但不再低于游戏基准，避免行叠行
+    if (maxLines > 1) {
+        int fit = maxH / maxLines;
+        int base = (g_lineH > 0 ? g_lineH : 8) + 2;
+        if (fit > base && fit < lineH) lineH = fit;
+    }
+
+    int len   = (int)strlen(text);
+    // 剧本译文为对齐原文长度，行尾补了半角空格；换行排版时不计入，
+    // 否则几百个尾随空格会把整段文字撑到疯狂折行 / 居中偏左。
+    while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t')) --len;
+    int lines = 0, curW = 0, yOff = 0, px = 0;
+    bool stop = false;
+
+    for (int i = 0; i < len; )
+    {
+        WCHAR wc; int n = DecodeChar(text, i, len, wc);
+        if (!wc) { i += n; continue; }
+
+        if (wc == L'\n') {
+            if (lines >= maxLines) {
+                yOff += lineH;
+                if (glyphH + yOff > maxH) { stop = true; break; }
+            }
+            curW = 0; ++lines; i += n; continue;
+        }
+
+        int adv = GlyphAdvance(wc);
+
+        // ---- 断行判定 ----
+        bool wrap = false;
+        if (wc >= 0x2E80) {                       // CJK 及全角标点：任意处可断
+            wrap = (curW > 0 && curW + adv > maxW);
+        } else if (wc != L' ') {                  // ASCII 词：整词度量
+            int wordW = 0;
+            for (int k = i; k < len; ) {
+                WCHAR w2; int n2 = DecodeChar(text, k, len, w2);
+                if (w2 == L'\n' || w2 == L' ' || w2 >= 0x2E80) break;
+                wordW += GlyphAdvance(w2);
+                k += n2;
+            }
+            if (wordW <= 0) wordW = adv;
+            wrap = (curW > 0 && curW + wordW > maxW);
+        } else {                                  // 空格本身溢出时换行并吞掉
+            wrap = (curW > 0 && curW + adv > maxW);
+        }
+
+        if (wrap) {
+            if (lines >= maxLines) {
+                yOff += lineH;
+                if (glyphH + yOff > maxH) { stop = true; break; }
+            }
+            curW = 0; ++lines;
+            if (wc == L' ') { i += n; continue; }   // 行首不留空格
+        }
+
+        if (lines < maxLines) {
+            int topY = yOff + ds->clipY + g_cfg.vOffset;
+            px += DrawGlyph(wc, curW + ds->clipX, topY + g_ascent, ink,
+                            pixels, pitch, minX, maxX, minY, maxY, adv);
+        }
+        curW += adv;
+        i += n;
+    }
+
+    // flag 非 0：在末尾补一个 '|'，与原函数一致（提示「还有更多」）
+    if (!stop && flag) {
+        int adv = GlyphAdvance(L'|');
+        if (curW > 0 && curW + adv > maxW) {
+            if (lines >= maxLines) {
+                yOff += lineH;
+                if (glyphH + yOff > maxH) stop = true;
+            }
+            if (!stop) { curW = 0; ++lines; }
+        }
+        if (!stop && lines < maxLines) {
+            int topY = yOff + ds->clipY + g_cfg.vOffset;
+            px += DrawGlyph(L'|', curW + ds->clipX, topY + g_ascent, ink,
+                            pixels, pitch, minX, maxX, minY, maxY, adv);
+        }
+    }
+
+    if (weLocked && g_unlockFn) g_unlockFn();
+
+    if (g_cfg.debug && dbgWrap < 8) {
+        Log("wrap #%d maxLines=%d maxW=%d maxH=%d lineH=%d -> lines=%d px=%d\n",
+            dbgWrap, maxLines, maxW, maxH, lineH, lines, px);
+        ++dbgWrap;
+    }
+    return (short)lines;
 }
 
 // ===================== 通用手动 Detour（纯 Win32） ==========================
@@ -515,7 +745,7 @@ static void UninstallAll()
 }
 
 // ===================== 各挂钩函数 ==========================================
-static int g_dbgDraw = 0, g_dbgMeasure = 0, g_dbgCharW = 0;
+static int g_dbgDraw = 0, g_dbgMeasure = 0, g_dbgCharW = 0, g_dbgAscii = 0, g_dbgWrap = 0;
 
 // 诊断：打印 text 指针的「内存上下文」。
 // 目的——判定字符串是被截断（后随 NUL），还是指针落在了行中间（前有残字）。
@@ -546,56 +776,42 @@ static int __cdecl HookDrawText(int x, int y, const unsigned char* colorTable,
                                 const char* text, void* surface)
 {
     if (!text) return g_origDrawText(x, y, colorTable, text, surface);
+    PatchTextTable();          // 保证「一行一项」的表已就位
+    // 菜单画到第 100 次时存一张整屏，便于核对排版（前 3 次是标题画面）
+    if (g_cfg.dumpFrame && g_dbgDraw == 100) g_wantDump = true;
     bool hasCJK = false;
     for (const char* p = text; *p; ++p) { if ((BYTE)*p >= 0x81) { hasCJK = true; break; } }
-    if (!hasCJK) return g_origDrawText(x, y, colorTable, text, surface);
-
-    if (g_cfg.debug && g_dbgDraw < 40) {
-        int n = (int)strlen(text);
-        Log("D#%d ret=%p (%d,%d) s=%p p=%p len=%d ink=%02X txt=", g_dbgDraw,
-            _ReturnAddress(), x, y, surface, text, n, colorTable ? colorTable[0] : 0xFF);
-        for (int k = 0; k < 48 && k < n; ++k) Log("%02X ", (BYTE)text[k]);
-        Log("\n");
-        // 同一指针只 dump 一次，避免主菜单重复重绘刷屏
-        static const char* seen[40] = { 0 };
-        static int seenCount = 0;
-        bool dup = false;
-        for (int k = 0; k < seenCount; ++k) if (seen[k] == text) { dup = true; break; }
-        if (!dup && seenCount < 40) {
-            seen[seenCount++] = text;
-            DumpTextContext(text);
-
-            // 若本次是由 sub_43B19F（格式化绘制）发起的，则顺着栈帧反推它的
-            // format 与真正的调用者——这是判定「文本来源」的决定性证据：
-            //   format 在 .rdata(0x49xxxx) = EXE 内常量
-            //   format 在 .data/heap        = 文件读进来的内容
-            DWORD* pRet = (DWORD*)_AddressOfReturnAddress();
-            if (pRet && pRet[0] == 0x0043B20Bu) {
-                // sub_43B19F 的栈帧位置未知（局部变量/push 数量可能变化），
-                // 直接扫描候选帧：谁的「返回地址」落在 .text(0x401000..0x490000) 就是它。
-                for (int k = 4; k <= 16; ++k) {
-                    DWORD e = (DWORD)(pRet + k);
-                    if (IsBadReadPtr((void*)e, 0x20)) continue;
-                    DWORD cand = *(DWORD*)(e + 4);
-                    if (cand < 0x401000u || cand > 0x490000u) continue;
-                    const char* fmtp = *(const char**)(e + 0x14);
-                    DWORD arg0       = *(DWORD*)(e + 0x18);
-                    Log("   K=%2d caller=%p fmt=%p arg0=%p\n", k, (void*)cand, (void*)fmtp, (void*)arg0);
-                    if (fmtp && !IsBadReadPtr(fmtp, 24)) {
-                        Log("        fmt : ");
-                        for (int i = 0; i < 24 && fmtp[i]; ++i) Log("%02X ", (BYTE)fmtp[i]);
-                        Log("\n");
-                    }
-                    if (arg0 > 0x10000 && !IsBadReadPtr((void*)arg0, 32)) {
-                        Log("        arg0: ");
-                        for (int i = 0; i < 32; ++i) { BYTE b = ((BYTE*)arg0)[i]; if (!b) break; Log("%02X ", b); }
-                        Log("\n");
-                    }
-                }
-            }
+    if (!hasCJK) {
+        if (g_cfg.debug && g_dbgAscii < 300) {
+            int n = (int)strlen(text);
+            Log("A#%d (%d,%d) s=%p len=%d txt=", g_dbgAscii, x, y, surface, n);
+            for (int k = 0; k < 40 && k < n; ++k) Log("%02X ", (BYTE)text[k]);
+            Log("\n");
+            ++g_dbgAscii;
         }
+        return g_origDrawText(x, y, colorTable, text, surface);
+    }
+
+    if (g_cfg.debug && g_dbgDraw < 300) {
+        int n = (int)strlen(text);
+        Log("D#%d (%d,%d) s=%p p=%p len=%d ink=%02X txt=", g_dbgDraw,
+            x, y, surface, text, n, colorTable ? colorTable[0] : 0xFF);
+        for (int k = 0; k < 40 && k < n; ++k) Log("%02X ", (BYTE)text[k]);
+        Log("\n");
     }
     ++g_dbgDraw;
+
+    // 自检：首次绘制时用真实表面跑一遍换行渲染器，验证断行/行距，并把整屏 dump 下来。
+    // 只在 ini 里 SelfTest=1 时启用，日常不跑。
+    if (g_cfg.selfTest && g_dbgDraw == 1) {
+        WCHAR w[] = L"剧本简报换行测试：这一段故意写得比较长，用来验证自动换行渲染在中文下的"
+                    L"断行、行距与字距是否正确，以及是否会被容器边界裁掉。第二行应该自然折下来。";
+        char gbk[600] = { 0 };
+        WideCharToMultiByte(936, 0, w, -1, gbk, sizeof(gbk), nullptr, nullptr);
+        short n = WrapDrawCJK(4, colorTable, gbk, surface, 0);
+        Log("selftest: wrap -> lines=%d\n", n);
+        g_wantDump = true;
+    }
     return RenderStringCJK(x, y, colorTable, text, surface);
 }
 
@@ -603,6 +819,7 @@ static int __cdecl HookDrawText(int x, int y, const unsigned char* colorTable,
 static short __cdecl HookMeasureText(const char* text)
 {
     if (!text) return 0;
+    PatchTextTable();
     bool hasCJK = false;
     for (const char* p = text; *p; ++p) { if ((BYTE)*p >= 0x81) { hasCJK = true; break; } }
     if (!hasCJK) return g_origMeasure ? g_origMeasure(text) : 0;
@@ -639,6 +856,26 @@ static int __cdecl HookCharWidth(DWORD fontObj, int ch)
     return g_charWidth(fontObj, ch);
 }
 
+// 自动换行绘制：纯 ASCII 走原函数（零回归）；含 GBK 走中文实现
+static short __cdecl HookWrapDraw(short maxLines, const unsigned char* colorTable,
+                                  const char* text, void* surface, char flag)
+{
+    if (!text || !g_origWrap)
+        return g_origWrap ? g_origWrap(maxLines, colorTable, text, surface, flag) : 0;
+    bool hasCJK = false;
+    for (const char* p = text; *p; ++p) { if ((BYTE)*p >= 0x81) { hasCJK = true; break; } }
+    if (!hasCJK) return g_origWrap(maxLines, colorTable, text, surface, flag);
+    // 剧本简报验证用：打印传进来的文本字节，可判断中文是否被加载器切碎
+    if (g_cfg.debug && g_dbgWrap < 20) {
+        int n = (int)strlen(text);
+        Log("W#%d maxLines=%d len=%d txt=", g_dbgWrap, maxLines, n);
+        for (int k = 0; k < 32 && k < n; ++k) Log("%02X ", (BYTE)text[k]);
+        Log("\n");
+        ++g_dbgWrap;
+    }
+    return WrapDrawCJK(maxLines, colorTable, text, surface, flag);
+}
+
 // 单字形 blit 兜底闸门：
 // 字形索引来自 movsx（有符号字节），GBK 高位字节会变成负数，
 // 原函数会用 fontObj + 0x10 + idx*4 反向越界读偏移表 → 读到垃圾指针再解引用崩溃。
@@ -671,6 +908,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID /*lpRese
         g_log = _wfopen(logPath, L"w");
         LoadConfig(dllPath);
         Log("PG2CHS: 附加 (hMod=%p)\n", hModule);
+        {
+            // 诊断：游戏工作目录决定它从哪里读文本表（GUI97 / MISC / SCENARIO）
+            wchar_t cwd[MAX_PATH] = { 0 };
+            GetCurrentDirectoryW(MAX_PATH, cwd);
+            wchar_t full[MAX_PATH] = { 0 };
+            GetFullPathNameW(L"SCENARIO\\A.TXT", MAX_PATH, full, nullptr);
+            Log("cwd=%ls\nscenario 探测=%ls exists=%d\n", cwd, full,
+                GetFileAttributesW(full) != INVALID_FILE_ATTRIBUTES ? 1 : 0);
+        }
 
         HMODULE hGame = GetModuleHandleA(TARGET_EXE);
         if (hGame) {
@@ -687,18 +933,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID /*lpRese
         static const BYTE kMeasurePro[6]   = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x0C };    // + sub esp,0Ch
         static const BYTE kDrawPro[6]      = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x10 };    // + sub esp,10h
         static const BYTE kBlitPro[6]      = { 0x55, 0x8B, 0xEC, 0x83, 0xC4, 0xD0 };    // + add esp,-30h
+        static const BYTE kWrapPro[6]      = { 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x30 };    // + sub esp,30h
 
         // 顺序：先字符查表（兜底），再测宽，再绘制，最后 blit 闸门
         g_charWidth    = (CharWidthFn)   InstallDetour(ADDR_CHARWIDTH, 5, kCharWidthPro, (void*)&HookCharWidth);
         g_origMeasure  = (OrigMeasureFn) InstallDetour(ADDR_MEASURE,   6, kMeasurePro,   (void*)&HookMeasureText);
         g_origDrawText = (OrigDrawTextFn)InstallDetour(ADDR_DRAWTEXT,  6, kDrawPro,      (void*)&HookDrawText);
+        g_origWrap     = (OrigWrapFn)    InstallDetour(ADDR_WRAPDRAW,  6, kWrapPro,      (void*)&HookWrapDraw);
         g_origBlit     = (BlitFn)        InstallDetour(ADDR_BLIT,      6, kBlitPro,      (void*)&HookBlit);
 
-        Log("PG2CHS: hook 状态 charwidth=%p measure=%p draw=%p\n",
-            g_charWidth, g_origMeasure, g_origDrawText);
+        Log("PG2CHS: hook 状态 charwidth=%p measure=%p draw=%p wrap=%p\n",
+            g_charWidth, g_origMeasure, g_origDrawText, g_origWrap);
         if (!g_origDrawText) Log("PG2CHS: !! 绘制 hook 未装上，中文无法显示\n");
         if (!g_origMeasure)  Log("PG2CHS: !! 测宽 hook 未装上，含中文的串可能崩\n");
         if (!g_charWidth)    Log("PG2CHS: !! 字符查表 hook 未装上\n");
+        if (!g_origWrap)     Log("PG2CHS: !! 换行绘制 hook 未装上，剧本简报不会有中文\n");
         break;
     }
     case DLL_PROCESS_DETACH:

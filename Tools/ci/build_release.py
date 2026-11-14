@@ -110,10 +110,17 @@ def build(out_root: Path, lang: str, date: str | None, skip_dll: bool, dll_path:
 
     copied = []
 
-    # 1) ASI Loader（必须）
+    # 实机确认：GOG 版由快捷方式把「工作目录」设为 update\，
+    # 游戏读文本表 / ini / .asi 全部相对该目录；只有 winmm.dll 两种位置都要放。
+    upd = stage / "update"
+    upd.mkdir(exist_ok=True)
+
+    # 1) ASI Loader（必须，32 位）
     loader = DIST / "common" / "winmm.dll"
     if loader.is_file():
-        shutil.copy2(loader, stage / "winmm.dll"); copied.append("winmm.dll")
+        shutil.copy2(loader, stage / "winmm.dll")
+        shutil.copy2(loader, upd / "winmm.dll")
+        copied.append("winmm.dll (根 + update)")
     else:
         print("!! 缺少 dist/common/winmm.dll（ASI Loader）"); sys.exit(1)
 
@@ -125,34 +132,34 @@ def build(out_root: Path, lang: str, date: str | None, skip_dll: bool, dll_path:
     # 2b) 运行参数（字体/字号/微调，改后重启游戏即生效）
     cfg = DIST / "common" / "PG2CHS.ini"
     if cfg.is_file():
-        shutil.copy2(cfg, stage / "PG2CHS.ini"); copied.append("PG2CHS.ini")
+        shutil.copy2(cfg, upd / "PG2CHS.ini"); copied.append("update/PG2CHS.ini")
 
     # 3) 顶层文本表（行式位置索引，保持行数/顺序）
     for name in ROOT_TXT:
         src = chs / name
         if src.is_file():
-            shutil.copy2(src, stage / name); copied.append(name)
+            shutil.copy2(src, upd / name); copied.append(f"update/{name}")
         else:
             print(f"!! Resources/{lang}/{name} 缺失（文本表不完整）")
 
-    # 4) 场景文本
+    # 4) 场景文本：根目录与工作目录各一份，兼容两种相对路径解析
     scen_src = chs / "SCENARIO"
     scen_n = 0
     if scen_src.is_dir():
-        scen_dst = stage / "SCENARIO"
-        scen_dst.mkdir(exist_ok=True)
-        for t in sorted(scen_src.glob("*.TXT")):
-            shutil.copy2(t, scen_dst / t.name); scen_n += 1
-        copied.append(f"SCENARIO/ ({scen_n} 个)")
+        for dst in (stage / "SCENARIO", upd / "SCENARIO"):
+            dst.mkdir(exist_ok=True)
+            for t in sorted(scen_src.glob("*.TXT")):
+                shutil.copy2(t, dst / t.name)
+                if dst == stage / "SCENARIO":
+                    scen_n += 1
+        copied.append(f"SCENARIO/ + update/SCENARIO/ (各 {scen_n} 个)")
 
     # 5) ASI 插件（若已编译）
     dll = find_compiled_dll(dll_path, skip_dll)
     if dll is not None:
-        scripts = stage / "scripts"
-        scripts.mkdir(exist_ok=True)
-        dest = scripts / "PG2CHS_DLL.asi"
+        dest = upd / "PG2CHS_DLL.asi"
         shutil.copy2(dll, dest)
-        copied.append(f"scripts/PG2CHS_DLL.asi ({dest.stat().st_size} B)")
+        copied.append(f"update/PG2CHS_DLL.asi ({dest.stat().st_size} B)")
 
     # 6) 字体（若放置了 CJK 字体）
     font_n = 0
