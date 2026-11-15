@@ -239,7 +239,9 @@ def main():
         out_lines = []
         for line in parts:
             n_lines += 1
-            # 保留行首 TAB 缩进
+            # 行首缩进：英文基准用 TAB，但简体中文渲染路径会把 U+0009
+            # 交给 GDI 取字形（SimSun 的 .notdef 是方框），屏幕上就成了「□□」。
+            # 输出时统一换成等长空格（1 字节换 1 字节，行字节数不变）。
             m = re.match(r"^(\t*)", line)
             indent = m.group(1) if m else ""
             body = line[len(indent):]
@@ -257,7 +259,10 @@ def main():
                 out_lines.append(line)
                 continue
             n_hit += 1
-            b = (indent + cn).encode("gbk")
+            # indent 不参与译文长度计算：它只在最后拼回一次。
+            # 旧版这里写成 (indent + cn)，末尾又 append(indent + ...)，
+            # 于是英文的 1 个 TAB 变成中文的 2 个 TAB，行还多出 indent 个字节。
+            b = cn.encode("gbk")
             cap = len(body.encode("latin-1"))
             if len(b) > cap:
                 # 短地名（Malta/Tobruk/Novgorod…）音译成中文必然超过原文字节数。
@@ -268,6 +273,8 @@ def main():
                 b += b" " * (cap - len(b))     # 行尾补齐到原文字节数
             out_lines.append(indent + b.decode("latin-1"))
 
+        # 兜底：无论译文命中与否，输出里都不留 TAB（含未翻译行的原样缩进）。
+        out_lines = [ln.replace("\t", " ") for ln in out_lines]
         out = sep.join(out_lines).encode("latin-1")
         (CHS_DIR / src.name).write_bytes(out)
 

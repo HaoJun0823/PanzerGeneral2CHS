@@ -1339,6 +1339,15 @@ static short WrapDrawCJK(short startLine, const unsigned char* colorTable,
             continue;
         }
 
+        // ASCII 控制字符（TAB / 0x1A 等）不是可绘制字符：原版位图字体按空白处理，
+        // RenderStringCJK 也已跳过，但这里漏了。U+0009 交给 GDI 会取到 SimSun 的
+        // .notdef 方框，简报行首缩进就显示成「□□」。只推进笔位，不画字形。
+        if (wc < 0x20) {
+            curW += GlyphAdvance(L' ');
+            i += n;
+            continue;
+        }
+
         int adv = GlyphAdvance(wc);
 
         // 断行：CJK 任意处可断；ASCII 按整词度量（复刻原函数 0x43B4F4 起）
