@@ -40,6 +40,11 @@ on:
         description: '构建完成后同时创建 GitHub Release（默认只上传 Artifact）'
         type: boolean
         default: false
+      tag:
+        description: '发行标签（留空自动生成 vYYYYMMDD-HHMM；建议 V1、V2…）'
+        type: string
+        default: ''
+        required: false
       skip_dll:
         description: '跳过 ASI 编译（只打包文本资源）'
         type: boolean
@@ -141,9 +146,11 @@ jobs:
 
       - name: 创建 Release
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
-          tag="汉化补丁-$(TZ=Asia/Shanghai date +%Y-%m-%d-%H-%M-%S)"
+          tag="${RELEASE_TAG:-v$(TZ=Asia/Shanghai date +%Y%m%d-%H%M)}"
           zip_path="$(find dist -name 'PanzerGeneral2-CHS-*.zip' -print -quit)"
           if [ -z "$zip_path" ]; then
             echo "!! dist 内没有发布包：" >&2
@@ -151,14 +158,30 @@ jobs:
             exit 1
           fi
           {
-            echo "## 《装甲元帅 2》汉化补丁"
+            echo "## 《装甲元帅 2》汉化补丁 $tag"
             echo
-            echo "由 GitHub Actions 从提交 \`${GITHUB_SHA:0:7}\` 自动构建，下载 zip 后解压覆盖到游戏根目录。"
+            echo "由 GitHub Actions 从 master 提交 \`${GITHUB_SHA:0:7}\` 自动构建："
+            echo "windows-latest + MSVC x86 (v143) 编译 32 位 ASI，随后打包并通过结构校验。"
+            echo
+            echo "### 本版要点"
+            echo
+            echo "- 全量简体中文：GUI、306 个剧本简报、地名 / 装备名显示层替换。"
+            echo "- 修复部分简报行首出现「□□」方框（TAB 缩进不再被当成可绘制字符）。"
+            echo "- 稳定字形配置 \`FitGlyphHeight=1\`，无底部文字残留。"
+            echo
+            echo "### 安装"
+            echo
+            echo "下载下方 zip，解压覆盖到游戏根目录即可（GOG 版请以 \`update/\` 为工作目录）。"
             echo "安装 / 卸载 / 常见问题见包内 \`必读说明.txt\`。"
             echo
             echo "| 附件 | 说明 |"
             echo "|---|---|"
             echo "| \`$(basename "$zip_path")\` | 简体中文（CHS）汉化包 |"
+            echo
+            echo "### 最近提交"
+            echo
+            git log -5 --pretty=format:'- `%h` %s'
+            echo
           } > notes.md
           gh release create "$tag" "$zip_path" \
             --target "$GITHUB_SHA" \
