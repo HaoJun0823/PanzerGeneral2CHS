@@ -8,8 +8,9 @@ build_dll_local.py — 本地编译 PG2CHS_DLL（MSVC 2017 v141, Win32/x86）
   v141 (MSVC 14.16) + Windows SDK 10.0.26100.0 + cl /LD /Y- /utf-8。
 
 环境适配：
-  - CI（ubuntu-latest + msvc-wine）：`cl` 已在 PATH，且 INCLUDE/LIB 由 msvcenv.sh 设好，
-    本脚本直接调用 `cl`（msvc-wine 的 Hostx64/x86 包装），不做任何覆盖。
+  - CI（ubuntu-latest + msvc-wine）：`cl` 已在 PATH（bin/x86 包装脚本），
+    INCLUDE/LIB 由包装脚本设置，本脚本不覆盖。传给 cl 的路径一律「相对仓库根 +
+    POSIX 分隔符」，由包装脚本负责转换成 wine 内路径。
   - 本地 Windows（VS2017 Professional）：自动定位 cl.exe，并补上 INCLUDE/LIB。
 
 用法：
@@ -98,15 +99,29 @@ def build(clean: bool, out: Path | None):
         out_dll.unlink()
 
     # 把 .obj 也重定向到 build/，避免污染仓库根目录（cl 默认把 obj 写到 cwd）。
-    obj_dir = out_dll.parent
+    # ★ 传给 cl 的路径一律「相对仓库根 + POSIX 分隔符 '/'」，并固定 cwd=ROOT：
+    #   · 本地 Windows：cl.exe 接受正斜杠路径；
+    #   · Linux CI（msvc-wine）：bin/x86/cl 包装脚本把 POSIX 相对路径转成 wine
+    #     内路径（与 TAK_41BB_CHS 的 /Fobuild_dll/obj/ 同款），比绝对路径少一层
+    #     转换风险。刻意不用 os.sep：两个平台走**同一套命令行**，可直接比对。
+    #   旧版这里硬编码 f"/Fo{obj_dir}\\"，是改用 windows runner 时留下的坑：
+    #   Linux 下会变成 /Fo/home/runner/.../build\ ，cl 找不到输出目录。
+    def cl_rel(p: Path) -> str:
+        try:
+            return p.relative_to(ROOT).as_posix()
+        except ValueError:          # --out 指向仓库外时保留绝对路径
+            return p.as_posix()
+
+    fo_dir = cl_rel(out_dll.parent) + "/"      # /Fo 传目录，必须以 '/' 结尾
+    src = cl_rel(SRC)
     cmd = [
         str(cl), "/nologo", "/LD", "/EHsc", "/Y-", "/utf-8", "/O2",
         "/D", "WIN32", "/D", "NDEBUG", "/D", "PG2CHSDLL_EXPORTS",
         "/D", "_WINDOWS", "/D", "_USRDLL",
-        f"/Fo{obj_dir}\\",
-        "/I", str(SRC),
-        str(SRC / "dllmain.cpp"), str(SRC / "pch.cpp"),
-        "/link", f"/OUT:{out_dll}",
+        f"/Fo{fo_dir}",
+        "/I", src,
+        f"{src}/dllmain.cpp", f"{src}/pch.cpp",
+        "/link", f"/OUT:{cl_rel(out_dll)}",
         "/SUBSYSTEM:WINDOWS",
         "kernel32.lib", "user32.lib", "gdi32.lib", "advapi32.lib",
         "shell32.lib", "ole32.lib",
@@ -119,7 +134,7 @@ def build(clean: bool, out: Path | None):
         env["LIB"] = lib
 
     print("[build] 编译 PG2CHS_DLL ...")
-    rc = subprocess.run(cmd, env=env)
+    rc = subprocess.run(cmd, env=env, cwd=str(ROOT))
     if rc.returncode != 0:
         print(f"!! 编译失败 rc={rc.returncode}")
         sys.exit(1)

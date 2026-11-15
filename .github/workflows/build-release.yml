@@ -1,8 +1,9 @@
 name: build-release
 
-# ============================================================================
+# ══════════════════════════════════════════════════════════════════════════
 # 装甲元帅2 汉化补丁：编译 -> 打包 -> 校验 -> Artifact ->（可选）Release
-# ----------------------------------------------------------------------------
+#   ubuntu-latest + msvc-wine（wine 里跑真 cl.exe，产出 32 位 v141 的 ASI）
+# ══════════════════════════════════════════════════════════════════════════
 # 产物：build_out/PanzerGeneral2-CHS-<date>-<time>.zip
 #       解压到游戏根目录即可用；包内 update/ 为 GOG 快捷方式指定的工作目录。
 #
@@ -11,16 +12,38 @@ name: build-release
 #   pull_request(master)   门禁（只构建，不发布）
 #   workflow_dispatch      手动；可勾选 publish 顺带发 Release、skip_dll 只打包文本
 #
-# ★ 架构：windows-latest + MSVC x86（VS2022 v143 的 Hostx64/x86 交叉工具）。
-#   本机开发用 VS2017 v141，但本 DLL 是普通 Win32 C++（无 vcxproj / 无第三方 lib），
-#   用 CI 现成的 MSVC x86 直接 cl 编译即可，不需要在 runner 上加装 v141，
-#   也不需要旧方案「ubuntu + msvc-wine 下载 4GB 工具链」的 30 分钟冷启动。
-#   DLL 仍是 PE32（32 位），由 verify_release.py 硬校验。
+# ★ 架构（2026-11-15 切换）：windows-latest → ubuntu-latest + msvc-wine。
+#   与 SR_GAME_CHINESE 的 build-release.yml 同一套思路：
+#     · vsdownload.py 用与 VS 安装器**同一份官方 manifest** 从微软 CDN 拉包，
+#       --major 15 --msvc-version 15.9 精确锁定 VS2017 15.9 的
+#       VC.Tools.14.16（= v141 本体，cl 19.16）；版本钉死、可缓存，不受
+#       GitHub 每次调整 windows 镜像预装组件的影响；
+#     · wine 跑真 cl/link（msvc-wine 的 bin/x86 包装脚本自动设置 INCLUDE/LIB
+#       并修复 Linux 大小写敏感下的头文件名），**不走 MSBuild**，因此也没有
+#       「windows 镜像装不回 v141 → vcxproj 编译失败」这条死路；
+#     · 编译由 Tools/ci/build_dll_local.py 直接拼 cl/link 命令行，打包 / 校验
+#       是纯 Python，Linux 原生运行；verify_release.py --require-asi 硬校验
+#       产物是 PE32，质量门禁不因换平台而放松。
 #
-#   不依赖第三方 action：编译步骤里用 vswhere 定位 vcvarsall.bat，
-#   在同一个 cmd 子进程里 `call vcvarsall x86` 后直接跑 build_dll_local.py。
-#   cl 位于 PATH 时脚本直接沿用 INCLUDE/LIB，不覆盖；打包/校验是纯 Python。
-# ============================================================================
+#   与参考模板的两点差异（都是 32 位目标带来的，不能照抄 x64 版）：
+#     1) --architecture **x86 x64**（不是只 x64）：bin/x86 的 cl.exe 是
+#        Hostx64/x86（64 位宿主编 32 位目标），启动时按 PATH 找 mspdbcore.dll，
+#        而该文件只在 Hostx64/x64 目录；只拉 x86 会报 C1356，只拉 x64 则
+#        编不出 32 位产物（MajestyIIExtend / TAK_41BB_CHS 实测踩过）。
+#     2) SDK 单独走 VS2022 channel 的 10.0.26100 再合并进同一个 prefix：
+#        本工程 vcxproj 声明 WindowsTargetPlatformVersion=10.0.26100.0，
+#        TAK_41BB_CHS 用同一组合已跑通，比换成 SDK 17763 少一处不确定。
+#        两段下载只在缓存未命中时执行，~4GB 落在 .msvc/ 由 actions/cache 缓存。
+#
+#   ★ 工具集门禁：cl banner 必须是 19.16（MSVC 14.16 / v141），并且要先真的
+#     编出一个 PE32 DLL 才放行 —— 防止 vsdownload 参数被上游改动后静默回退
+#     到新版工具集（那会引入新版 CRT 依赖，改变产物语义）。
+#
+#   ★ 本仓库早期就是这套 Linux 路线（见 commit d29e548），后来为省冷启动改成
+#     windows runner，并给 build_dll_local.py 加了一行硬编码反斜杠的 /Fo 路径；
+#     本次切回 Linux 时已把该路径改成「相对仓库根 + 原生分隔符」，否则 cl 会
+#     找不到 .obj 输出目录。
+# ══════════════════════════════════════════════════════════════════════════
 
 on:
   push:
@@ -59,60 +82,169 @@ concurrency:
 
 jobs:
   build:
-    name: 构建 / 打包 / 校验（windows-latest, MSVC x86）
-    runs-on: windows-latest
-    timeout-minutes: 30
+    name: 构建 / 打包 / 校验（ubuntu-latest + msvc-wine MSVC v141 x86）
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       PYTHONUTF8: '1'
       PYTHONIOENCODING: 'utf-8'
+      # msvc-wine 安装目录（VC 14.16 + 合并进来的 SDK 26100）
+      MSVC_WINE_PREFIX: ${{ github.workspace }}/.msvc
+      # SDK 26100 的独立下载目录（下载后 mv 合并进 MSVC_WINE_PREFIX）
+      MSVC_SDK_DIR: ${{ github.workspace }}/.msvc-sdk
+      # msvc-wine 上游 checkout 的 ref。升级时改这里 —— cache key 含它，自动换缓存
+      MSVCWINE_REF: master
 
     steps:
       - name: 检出仓库
         uses: actions/checkout@v7.0.1
+        with:
+          submodules: false
+
+      # ★ 必须完整 checkout msvc-wine（不能只下 vsdownload.py）：install.sh 要用
+      #   仓库里的 lowercase / fixinclude（大小写修复）、wrappers/（cl/link 包装
+      #   脚本）、msvctricks.cpp（自举编译一次 cl 实测可用性）。
+      - name: 检出 msvc-wine
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: mstorsjo/msvc-wine
+          ref: ${{ env.MSVCWINE_REF }}
+          path: .msvc-wine
 
       - name: 配置 Python
         uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
 
-      # vswhere + vcvarsall.bat 只包住编译这一步；后续打包/校验是纯 Python，
-      # 不需要编译器环境。全部用 runner 自带工具，无第三方 action 依赖。
-      - name: 编译 PG2CHS_DLL（Win32 / x86）
-        if: ${{ github.event.inputs.skip_dll != 'true' }}
-        shell: pwsh
+      # msvc-wine README 的 Prerequisites：
+      #   wine64 : 运行真 cl.exe / link.exe
+      #   msitools: msiextract，解 VS 组件与 WinSDK 的 .msi（需 >= 0.98）
+      #   winbind : /Zi 时 mspdbsrv 命名管道通信；本构建不用 /Zi，纯保险
+      - name: 安装 wine / msitools 等依赖
         run: |
-          $ErrorActionPreference = 'Stop'
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          if (-not (Test-Path $vswhere)) { throw "找不到 vswhere.exe: $vswhere" }
-          $vs = & $vswhere -latest -products * -property installationPath
-          if (-not $vs) { throw "vswhere 未找到 Visual Studio" }
-          $vcvars = Join-Path $vs 'VC\Auxiliary\Build\vcvarsall.bat'
-          if (-not (Test-Path $vcvars)) { throw "找不到 vcvarsall.bat: $vcvars" }
-          Write-Host "VS: $vs"
-          cmd /c "`"$vcvars`" x86 && where cl && python --version && python Tools\ci\build_dll_local.py --clean"
-          if ($LASTEXITCODE -ne 0) { throw "MSVC x86 编译失败 (exit $LASTEXITCODE)" }
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y wine64 msitools ca-certificates winbind
+          wine --version
+
+      # 缓存 .msvc/（解包完成的工具链 ~4GB）。key 含组件组合与 msvc-wine ref；
+      # 改下载参数 / 升级 msvc-wine 时改末尾版本号即可强制重下。
+      # ★ 缓存命中后 install.sh 仍无条件重跑（幂等，可修复 tar 对 symlink 的损伤）。
+      - name: 还原 MSVC 工具链缓存
+        uses: actions/cache@v6.1.0
+        with:
+          path: .msvc
+          key: pg2-msvcwine-v141-x86-sdk26100-${{ env.MSVCWINE_REF }}-v3
+
+      # ── 两段 vsdownload + 合并 ─────────────────────────────────────────
+      #   ★ 段 1（VC 14.16）：--major 15 是**关键** —— VC.Tools.14.16（v141）
+      #     只存在于 VS2017 manifest；VS2022+ 清单里 v141 兼容组件 ID 不同，
+      #     vsdownload 找不到会**静默回退最新工具集**，故必须锁 15。
+      #     --with-sdk=no：SDK 走段 2。其余 --with-*=no 砍掉 MSBuild / DIA /
+      #     ATL / ASAN / devcmd —— 直接 cl/link 用不上，省几百 MB。
+      #   ★ 段 2（SDK 26100）：--with-default=no 防止把整个 VCTools workload 拉下来。
+      #   ★ 合并：mv .msvc-sdk/Windows\ Kits -> .msvc/（VC 段没装 SDK，位置是空的）。
+      - name: 下载并装配 MSVC v141 + Win10 SDK 26100（缓存未命中时）
+        run: |
+          set -euo pipefail
+          if [ -x "${MSVC_WINE_PREFIX}/bin/x86/cl" ] && [ -d "${MSVC_WINE_PREFIX}/kits/10/include/10.0.26100.0" ]; then
+            echo "工具链缓存命中（VC 14.16 + SDK 26100），跳过下载（install.sh 仍会重跑）。"
+          else
+            echo "==> [1/3] 下载 VC 14.16 (v141, VS2017 channel, x86+x64)"
+            python3 .msvc-wine/vsdownload.py \
+              --accept-license --major 15 --msvc-version 15.9 \
+              --architecture x86 x64 --host-arch x64 \
+              --with-sdk=no --with-atl=no --with-asan=no --with-dia=no \
+              --with-msbuild=no --with-devcmd=no \
+              --dest "${MSVC_WINE_PREFIX}"
+
+            echo "==> [2/3] 下载 Win10 SDK 26100 (VS2022 channel)"
+            python3 .msvc-wine/vsdownload.py \
+              --accept-license --major 17 \
+              --sdk-version 10.0.26100 \
+              --with-default=no \
+              --architecture x86 --host-arch x64 \
+              --dest "${MSVC_SDK_DIR}"
+
+            echo "==> [3/3] 合并 SDK 26100 进 MSVC prefix"
+            if [ -d "${MSVC_WINE_PREFIX}/Windows Kits" ]; then
+              echo "!! .msvc/Windows Kits 已存在，意外状态" >&2; exit 1
+            fi
+            mv "${MSVC_SDK_DIR}/Windows Kits" "${MSVC_WINE_PREFIX}/"
+          fi
+          rm -rf "${MSVC_SDK_DIR}"
+
+      # install.sh 做四件事：a) VC/WindowsKits 目录小写 symlink 化；b) 生成
+      # bin/x86/{cl,link,...} 包装脚本 + msvcenv.sh；c) wineboot 初始化 prefix；
+      # d) 自举编译 msvctricks.cpp 实测 cl 可用。幂等，永远跑。
+      - name: install.sh（生成包装脚本 / 大小写修复）
+        run: |
+          set -euo pipefail
+          sh .msvc-wine/install.sh "${MSVC_WINE_PREFIX}"
+
+      # ── 编译器门禁：版本 + 真的能编出 32 位 DLL ───────────────────────
+      #   banner 只记录版本；真正的门禁是下面这次真实编译 —— 它能挡住
+      #   「包装脚本缺 mspdbcore.dll」「SDK 没装全」「cl 跑到 64 位去」三类问题。
+      - name: 验证编译器为 MSVC v141 x86（banner + 32 位试编）
+        run: |
+          set -euo pipefail
+          export PATH="${MSVC_WINE_PREFIX}/bin/x86:$PATH"
+          echo "── mspdbcore.dll 就位检查（C1356 根因诊断）──"
+          find "${MSVC_WINE_PREFIX}/vc/tools/msvc" -name mspdbcore.dll 2>/dev/null || true
+          echo "── cl banner（应为 19.16 = MSVC 14.16 / v141）──"
+          banner="$(cl 2>&1 || true)"
+          echo "$banner" | head -2
+          if ! echo "$banner" | grep -q "19\.16"; then
+            echo "!! cl 不是 MSVC 14.16 (v141) —— vsdownload 可能回退了版本" >&2
+            exit 1
+          fi
+          echo "── Win SDK 版本（应只有 10.0.26100.0）──"
+          ls "${MSVC_WINE_PREFIX}/kits/10/include/"
+          echo "── 32 位试编 ──"
+          cat > probe.c <<'EOF'
+          __declspec(dllexport) int probe(void) { return 42; }
+          int __stdcall DllMain(void* h, unsigned long r, void* p) { return 1; }
+          EOF
+          cl /nologo /LD /Fo:probe.obj /Fe:probe.dll probe.c
+          python3 - <<'PY'
+          import struct
+          d = open('probe.dll','rb').read()
+          pe = struct.unpack_from('<I', d, 0x3c)[0]
+          machine = struct.unpack_from('<H', d, pe+4)[0]
+          assert machine == 0x14c, 'probe.dll 不是 x86（machine=0x%04x）' % machine
+          print('✓ 试编成功：x86 DLL %d B' % len(d))
+          PY
+          rm -f probe.c probe.obj probe.dll
+          echo "── 磁盘余量 ──"
+          df -h . | tail -1
+
+      # build_dll_local.py 检测到 PATH 里的 cl 就直接用（INCLUDE/LIB 交给包装
+      # 脚本，自己不覆盖），命令行里的路径是相对仓库根的，包装脚本负责转换。
+      - name: 编译 PG2CHS_DLL（MSVC v141 / Win32 x86）
+        if: ${{ github.event.inputs.skip_dll != 'true' }}
+        run: |
+          set -euo pipefail
+          export PATH="${MSVC_WINE_PREFIX}/bin/x86:$PATH"
+          python3 Tools/ci/build_dll_local.py --clean
 
       - name: 跳过 ASI 编译
         if: ${{ github.event.inputs.skip_dll == 'true' }}
-        shell: bash
         run: echo "workflow_dispatch 勾选了 skip_dll：本次为纯文本构建。"
 
       - name: 装配发布包 (build_release.py)
-        shell: bash
         run: |
           set -euo pipefail
-          python Tools/ci/build_release.py --out-root build_out \
+          python3 Tools/ci/build_release.py --out-root build_out \
             ${{ github.event.inputs.skip_dll == 'true' && '--skip-dll' || '' }}
 
       - name: 校验发布包 (verify_release.py)
-        shell: bash
         run: |
           set -euo pipefail
           args=""
           if [ "${{ github.event.inputs.skip_dll }}" != "true" ]; then
             args="--require-asi"
           fi
-          python Tools/ci/verify_release.py build_out $args
+          python3 Tools/ci/verify_release.py build_out $args
 
       - name: 上传发布包 Artifact
         uses: actions/upload-artifact@v7.0.2
@@ -161,7 +293,7 @@ jobs:
             echo "## 《装甲元帅 2》汉化补丁 $tag"
             echo
             echo "由 GitHub Actions 从 master 提交 \`${GITHUB_SHA:0:7}\` 自动构建："
-            echo "windows-latest + MSVC x86 (v143) 编译 32 位 ASI，随后打包并通过结构校验。"
+            echo "ubuntu-latest + msvc-wine（MSVC v141 / 14.16）编译 32 位 ASI，随后打包并通过结构校验。"
             echo
             echo "### 本版要点"
             echo

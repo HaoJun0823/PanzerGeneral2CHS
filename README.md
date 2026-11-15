@@ -45,7 +45,7 @@
 ```bash
 cd PanzerGeneral2CHS
 
-# 1) 编译 ASI（本机 VS2017 v141 x86；CI 用 runner 自带 MSVC x86）
+# 1) 编译 ASI（本机 VS2017 v141 x86；CI 用 msvc-wine 的同一版本工具集）
 python Tools/ci/build_dll_local.py
 
 # 2) 装配发布包（Resources/CHS + dist → build_out/PanzerGeneral2-CHS-*.zip）
@@ -58,8 +58,10 @@ python Tools/ci/verify_release.py build_out
 ### CI（GitHub Actions）
 
 `.github/workflows/build-release.yml` 在 **push 到 `master` / `dev`、PR 到 `master`**
-时自动构建：`windows-latest` 上用 MSVC x86 编译 32 位 `PG2CHS_DLL.asi` →
-装配 zip → 结构校验 → 上传 Actions Artifact（保留 30 天）。
+时自动构建：`ubuntu-latest` 上用 msvc-wine 提供的 MSVC v141 (14.16) 编译 32 位
+`PG2CHS_DLL.asi` → 装配 zip → 结构校验 → 上传 Actions Artifact（保留 30 天）。
+工具链由 `vsdownload.py` 从微软官方 manifest 下载并缓存，版本钉死，不随
+GitHub 调整 windows 镜像预装组件而变。
 
 也可以在 Actions 页手动 `workflow_dispatch`：
 
@@ -69,10 +71,13 @@ python Tools/ci/verify_release.py build_out
 | `tag` | 发行标签，留空按日期生成 `vYYYYMMDD-HHMM`；已发布 `V0`（手动上传）、`V1`（CI 构建） |
 | `skip_dll` | 跳过编译，只打包文本资源（排查用） |
 
-CI 用 runner 自带的 MSVC（v143）直接 `cl` 编译，产物仍是 PE32；本机开发用
-VS2017 v141。两者都是普通 Win32 C++ 编译、无第三方库依赖，不需要在 runner 上
-加装 v141。`verify_release.py --require-asi` 会在 ASI 缺失或不是 32 位 PE 时
-让构建失败，避免「编译挂了却静默产出纯文本包」。
+CI 用 `ubuntu-latest + msvc-wine`：用与 VS 安装器同一份官方 manifest 拉
+VS2017 15.9 的 VC.Tools.14.16（v141 本体，cl 19.16）与 Win10 SDK 26100，
+wine 里跑真 `cl` / `link`，**不走 MSBuild**，因此不依赖 windows runner 预装
+v141（新镜像已装不回该工具集）。本机开发仍用 VS2017 v141，两边工具集一致，
+产物都是 PE32。CI 会先校验 cl banner 为 19.16 并试编一个 32 位 DLL，防止
+工具集静默回退；`verify_release.py --require-asi` 会在 ASI 缺失或不是 32 位
+PE 时让构建失败，避免「编译挂了却静默产出纯文本包」。
 
 ---
 
@@ -131,5 +136,5 @@ VS2017 v141。两者都是普通 Win32 C++ 编译、无第三方库依赖，不�
 
 - **Python 3**（+ 后续字体/文本工具链）
 - **Visual Studio 2017（MSVC 14.16 / v141）** + **Windows SDK 10.0.26100.0**（本机开发用；
-  CI 无需此组合，直接用 runner 自带的 MSVC x86）
+  CI 在 Linux 上用 msvc-wine 从官方 manifest 拉同版本工具集，不需要 Windows 与 VS 安装器）
 - 可选：**IDA Pro + ida-pro-mcp**（用于逆向渲染路径与字符串交叉引用）

@@ -39,6 +39,11 @@ PG2CHS_DLL/build/
 build_out/
 release/
 
+# ---- CI 工具链：msvc-wine 仓库与解包后的 VC/SDK（~4GB，本地复现 CI 时会产生）----
+/.msvc/
+/.msvc-wine/
+/.msvc-sdk/
+
 # ---- 字体源文件（大 TTF，由使用者自行放置；不入库避免仓库膨胀）----
 #   若决定随包分发某已授权字体，按需在 Fonts/ 反向放行。
 Fonts/*.ttf
