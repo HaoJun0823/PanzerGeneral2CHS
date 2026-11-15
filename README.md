@@ -33,7 +33,7 @@
 ## 快速开始
 
 ### 玩家：安装
-到 **Releases** 下载维护者手动上传的汉化补丁包 zip，**解压到游戏根目录**
+到 **Releases** 下载最新的汉化补丁包 zip（如 `V1`，由 CI 从 master 自动构建），**解压到游戏根目录**
 （exe 所在处），覆盖同名文件。安装前请备份存档与原始文件。
 
 > ⚠️ 安装步骤与细节以包内 `必读说明.txt` 为准。当前为**全量汉化**：
@@ -65,7 +65,8 @@ python Tools/ci/verify_release.py build_out
 
 | 输入 | 作用 |
 |---|---|
-| `publish` | 勾选后才额外创建 GitHub Release；默认**不自动发版**，V0 与手动上传的补丁包不受影响 |
+| `publish` | 勾选后才额外创建 GitHub Release；默认**不自动发版**。勾选时用 CI 本次构建出的 zip 发版，并自动成为 Latest |
+| `tag` | 发行标签，留空按日期生成 `vYYYYMMDD-HHMM`；已发布 `V0`（手动上传）、`V1`（CI 构建） |
 | `skip_dll` | 跳过编译，只打包文本资源（排查用） |
 
 CI 用 runner 自带的 MSVC（v143）直接 `cl` 编译，产物仍是 PE32；本机开发用
